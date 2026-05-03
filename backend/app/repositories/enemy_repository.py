@@ -27,6 +27,7 @@ class EnemyRepository:
             max_hp=spec.max_hp,
             barrier=spec.barrier,
             position=spec.position,
+            role=spec.role,
         )
         self.db.add(enemy)
         await self.db.flush()

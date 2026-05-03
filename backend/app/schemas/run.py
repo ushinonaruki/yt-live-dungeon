@@ -49,6 +49,7 @@ class EnemyOut(BaseModel):
     max_hp: int
     barrier: int
     position: int
+    role: str
     is_alive: bool
 
     model_config = {"from_attributes": True}

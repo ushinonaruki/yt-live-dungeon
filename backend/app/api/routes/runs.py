@@ -87,6 +87,7 @@ async def get_run_state(run_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
                 max_hp=e.max_hp,
                 barrier=e.barrier,
                 position=e.position,
+                role=e.role,
                 is_alive=e.is_alive,
             )
             for e, display_name in enemy_rows

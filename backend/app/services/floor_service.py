@@ -80,6 +80,9 @@ class FloorService:
 
         await self.run_repo.begin_floor(run, new_floor)
 
+        master_specs = [(e, s) for e, s in enemies if s.role == "master"]
+        minion_specs = [(e, s) for e, s in enemies if s.role == "minion"]
+
         await self.log_repo.add(
             run_id=run.id,
             event_type="floor_start",
@@ -91,26 +94,53 @@ class FloorService:
                     for a in adventurers
                 ],
                 "enemy_count": len(enemies),
+                "master_count": len(master_specs),
+                "minion_count": len(minion_specs),
                 "enemies": [
                     {
+                        "run_enemy_id": str(e.id),
+                        "position": s.position,
                         "display_name": s.display_name,
+                        "role": s.role,
                         "hp": s.max_hp,
                         "barrier": s.barrier,
                     }
-                    for _, s in enemies
+                    for e, s in enemies
                 ],
             },
         )
 
-        for e, spec in enemies:
+        for e, spec in master_specs:
             await self.log_repo.add(
                 run_id=run.id,
                 event_type="enemy_greeting",
                 body={
                     "floor": new_floor,
                     "run_enemy_id": str(e.id),
+                    "role": spec.role,
                     "display_name": spec.display_name,
                     "greeting": spec.greeting_action,
+                },
+            )
+
+        if minion_specs:
+            await self.log_repo.add(
+                run_id=run.id,
+                event_type="minion_deployed",
+                body={
+                    "floor": new_floor,
+                    "minion_count": len(minion_specs),
+                    "minions": [
+                        {
+                            "run_enemy_id": str(e.id),
+                            "position": s.position,
+                            "role": s.role,
+                            "display_name": s.display_name,
+                            "hp": s.max_hp,
+                            "barrier": s.barrier,
+                        }
+                        for e, s in minion_specs
+                    ],
                 },
             )
 
