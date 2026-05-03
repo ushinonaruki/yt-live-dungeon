@@ -17,6 +17,7 @@ class PendingJoinRepository:
         youtube_id: str,
         display_name: str,
         command_id: uuid.UUID,
+        oshi_name: str | None = None,
     ) -> bool:
         """INSERT ON CONFLICT DO NOTHING。挿入できた場合 True、重複だった場合 False を返す。"""
         stmt = (
@@ -26,6 +27,7 @@ class PendingJoinRepository:
                 run_id=run_id,
                 youtube_id=youtube_id,
                 display_name=display_name,
+                oshi_name=oshi_name,
                 command_id=command_id,
             )
             .on_conflict_do_nothing(constraint="uq_pending_join")
@@ -40,6 +42,15 @@ class PendingJoinRepository:
             .order_by(RunPendingJoin.created_at)
         )
         return list(result.scalars().all())
+
+    async def delete_by_ids(self, ids: list[uuid.UUID]) -> int:
+        """指定した ID のみ削除する。9人超過時に処理済み分だけ消すために使う。"""
+        if not ids:
+            return 0
+        result = await self.db.execute(
+            delete(RunPendingJoin).where(RunPendingJoin.id.in_(ids))
+        )
+        return result.rowcount
 
     async def clear_by_run(self, run_id: uuid.UUID) -> int:
         result = await self.db.execute(

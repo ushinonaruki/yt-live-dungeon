@@ -23,6 +23,7 @@ class PendingJoinOut(BaseModel):
     id: uuid.UUID
     youtube_id: str
     display_name: str
+    oshi_name: str | None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -34,6 +35,7 @@ class AdventurerOut(BaseModel):
     nickname: str
     hp: int
     max_hp: int
+    faith: int
     is_alive: bool
     joined_floor: int
 
@@ -47,7 +49,6 @@ class EnemyOut(BaseModel):
     floor: int
     hp: int
     max_hp: int
-    barrier: int
     position: int
     role: str
     is_alive: bool

@@ -42,7 +42,7 @@ class AdventurerRepository:
             attr_green=stats.attr_green,
             attr_purple=stats.attr_purple,
             attr_orange=stats.attr_orange,
-            attr_indigo=stats.attr_indigo,
+            faith=stats.faith,
             joined_floor=floor,
             joined_at=joined_at,
         )
@@ -70,6 +70,49 @@ class AdventurerRepository:
             .order_by(RunAdventurer.joined_at)
         )
         return list(result.scalars().all())
+
+    async def list_alive_by_run(self, run_id: uuid.UUID) -> list[RunAdventurer]:
+        result = await self.db.execute(
+            select(RunAdventurer)
+            .where(RunAdventurer.run_id == run_id, RunAdventurer.is_alive.is_(True))
+            .order_by(RunAdventurer.joined_at)
+        )
+        return list(result.scalars().all())
+
+    async def get_alive_by_youtube_id(
+        self, run_id: uuid.UUID, youtube_id: str
+    ) -> RunAdventurer | None:
+        result = await self.db.execute(
+            select(RunAdventurer).where(
+                RunAdventurer.run_id == run_id,
+                RunAdventurer.youtube_id == youtube_id,
+                RunAdventurer.is_alive.is_(True),
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list_items(self, adventurer_id: uuid.UUID) -> list[Item]:
+        q = (
+            select(Item)
+            .join(RunAdventurerItem, RunAdventurerItem.item_id == Item.id)
+            .where(RunAdventurerItem.run_adventurer_id == adventurer_id)
+            .order_by(RunAdventurerItem.slot)
+        )
+        return list((await self.db.execute(q)).scalars().all())
+
+    async def has_item_unlocking_spell(
+        self, adventurer_id: uuid.UUID, spell_name: str
+    ) -> bool:
+        q = (
+            select(RunAdventurerItem)
+            .join(Item, RunAdventurerItem.item_id == Item.id)
+            .join(Spell, Item.unlocks_spell_id == Spell.id)
+            .where(
+                RunAdventurerItem.run_adventurer_id == adventurer_id,
+                Spell.name == spell_name,
+            )
+        )
+        return (await self.db.execute(q)).first() is not None
 
     async def find_item_by_spell_name(self, spell_name: str) -> Item | None:
         q = (

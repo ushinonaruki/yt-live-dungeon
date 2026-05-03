@@ -16,7 +16,7 @@ def parse(text: str) -> ParsedCommand:
 
     parts = text.split(" ", 1)
     command_part = parts[0][1:]  # strip leading @
-    target_part = parts[1].strip() if len(parts) > 1 else None
+    target_part = parts[1].strip() or None if len(parts) > 1 else None
 
     # 半角英数字のみ許容。大文字・全角は不一致扱い。
     if not command_part or not command_part.isascii() or not command_part.isalnum():
@@ -24,7 +24,7 @@ def parse(text: str) -> ParsedCommand:
 
     match command_part:
         case "join":
-            return ParsedCommand(type="join")
+            return ParsedCommand(type="join", target_name=target_part)
         case "yes":
             return ParsedCommand(type="yes")
         case "no":

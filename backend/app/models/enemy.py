@@ -16,7 +16,7 @@ class Enemy(Base):
     name: Mapped[str] = mapped_column(String(64), unique=True)
     display_name: Mapped[str] = mapped_column(String(128))
     base_hp: Mapped[int] = mapped_column(Integer, default=100)
-    base_barrier: Mapped[int] = mapped_column(Integer, default=0)
+
     special_actions: Mapped[list] = mapped_column(JSONB, default=list)
     greeting_action: Mapped[dict] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(

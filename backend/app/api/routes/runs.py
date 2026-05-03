@@ -85,7 +85,6 @@ async def get_run_state(run_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
                 floor=e.floor,
                 hp=e.hp,
                 max_hp=e.max_hp,
-                barrier=e.barrier,
                 position=e.position,
                 role=e.role,
                 is_alive=e.is_alive,
