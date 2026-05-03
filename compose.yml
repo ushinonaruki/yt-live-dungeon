@@ -1,0 +1,26 @@
+services:
+  postgres:
+    build:
+      context: ./docker/postgres
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "${POSTGRES_PORT_HOST}:${POSTGRES_PORT_CONTAINER}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    build:
+      context: ./docker/redis
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "${REDIS_PORT_HOST}:${REDIS_PORT_CONTAINER}"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
