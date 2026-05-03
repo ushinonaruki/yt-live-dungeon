@@ -28,6 +28,33 @@ class PendingJoinOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class AdventurerOut(BaseModel):
+    id: uuid.UUID
+    youtube_id: str
+    nickname: str
+    hp: int
+    max_hp: int
+    is_alive: bool
+    joined_floor: int
+
+    model_config = {"from_attributes": True}
+
+
+class EnemyOut(BaseModel):
+    id: uuid.UUID
+    enemy_id: int
+    display_name: str
+    floor: int
+    hp: int
+    max_hp: int
+    barrier: int
+    position: int
+    role: str
+    is_alive: bool
+
+    model_config = {"from_attributes": True}
+
+
 class RunStateOut(BaseModel):
     run_id: uuid.UUID
     state: RunState
@@ -35,3 +62,12 @@ class RunStateOut(BaseModel):
     total_deaths: int
     pending_join_count: int
     pending_joins: list[PendingJoinOut]
+    adventurers: list[AdventurerOut]
+    enemies: list[EnemyOut]
+
+
+class FloorStartResult(BaseModel):
+    run_id: uuid.UUID
+    floor: int
+    adventurer_count: int
+    enemy_count: int

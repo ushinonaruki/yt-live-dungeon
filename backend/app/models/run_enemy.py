@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,6 +25,7 @@ class RunEnemy(Base):
     max_hp: Mapped[int] = mapped_column(Integer)
     position: Mapped[int] = mapped_column(Integer)
     barrier: Mapped[int] = mapped_column(Integer, default=0)
+    role: Mapped[str] = mapped_column(String(16), nullable=False, default="master")
     is_alive: Mapped[bool] = mapped_column(Boolean, default=True)
     died_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

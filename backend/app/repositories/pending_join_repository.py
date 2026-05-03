@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,3 +40,9 @@ class PendingJoinRepository:
             .order_by(RunPendingJoin.created_at)
         )
         return list(result.scalars().all())
+
+    async def clear_by_run(self, run_id: uuid.UUID) -> int:
+        result = await self.db.execute(
+            delete(RunPendingJoin).where(RunPendingJoin.run_id == run_id)
+        )
+        return result.rowcount
