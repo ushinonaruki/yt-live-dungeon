@@ -5,13 +5,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.repositories.run_repository import RunRepository
-from app.schemas.command import CommandEventIn
+from app.schemas.command import CommandEventIn, CommandResult
 from app.services.command_service import CommandService
 
 router = APIRouter(prefix="/runs", tags=["commands"])
 
 
-@router.post("/{run_id}/commands")
+@router.post("/{run_id}/commands", response_model=CommandResult)
 async def post_command(
     run_id: uuid.UUID,
     event: CommandEventIn,

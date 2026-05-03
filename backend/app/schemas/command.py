@@ -11,3 +11,9 @@ class CommandEventIn(BaseModel):
     display_name: str
     text: str
     received_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class CommandResult(BaseModel):
+    type: str
+    processed: bool
+    reason: str | None = None
