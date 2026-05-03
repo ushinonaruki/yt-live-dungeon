@@ -1,7 +1,13 @@
 import random
 from dataclasses import dataclass, field
+from typing import Literal
 
 from app.models.enemy import Enemy
+
+ROLE_MASTER: Literal["master"] = "master"
+ROLE_MINION: Literal["minion"] = "minion"
+
+EnemyRole = Literal["master", "minion"]
 
 
 @dataclass
@@ -12,7 +18,7 @@ class EnemySpawnSpec:
     max_hp: int
     barrier: int
     position: int
-    role: str  # "master" or "minion"
+    role: EnemyRole
     greeting_action: dict = field(default_factory=dict)
 
 
@@ -36,7 +42,7 @@ def spawn(templates: list[Enemy], floor: int) -> list[EnemySpawnSpec]:
             max_hp=hp,
             barrier=master_template.base_barrier + floor * 10,
             position=1,
-            role="master",
+            role=ROLE_MASTER,
             greeting_action=master_template.greeting_action or {},
         )
     )
@@ -52,7 +58,7 @@ def spawn(templates: list[Enemy], floor: int) -> list[EnemySpawnSpec]:
                 max_hp=hp,
                 barrier=t.base_barrier + floor * 10,
                 position=i + 2,
-                role="minion",
+                role=ROLE_MINION,
                 greeting_action=t.greeting_action or {},
             )
         )

@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.enemy_spawn import EnemySpawnSpec
+from app.core.enemy_spawn import ROLE_MASTER, ROLE_MINION, EnemySpawnSpec
 from app.models.enemy import Enemy
 from app.models.run_enemy import RunEnemy
 
@@ -59,7 +59,7 @@ class EnemyRepository:
             .join(Enemy, RunEnemy.enemy_id == Enemy.id)
             .where(
                 RunEnemy.run_id == run_id,
-                RunEnemy.role == "master",
+                RunEnemy.role == ROLE_MASTER,
                 RunEnemy.is_alive.is_(True),
             )
         )
@@ -74,7 +74,7 @@ class EnemyRepository:
             .join(Enemy, RunEnemy.enemy_id == Enemy.id)
             .where(
                 RunEnemy.run_id == run_id,
-                RunEnemy.role == "minion",
+                RunEnemy.role == ROLE_MINION,
                 RunEnemy.is_alive.is_(True),
             )
             .order_by(RunEnemy.position)

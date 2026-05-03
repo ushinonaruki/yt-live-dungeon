@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import enemy_spawn, nickname_generator, stat_generator
+from app.core.enemy_spawn import ROLE_MASTER, ROLE_MINION
 from app.models.run import Run, RunState
 from app.repositories.adventurer_repository import AdventurerRepository
 from app.repositories.enemy_repository import EnemyRepository
@@ -80,8 +81,8 @@ class FloorService:
 
         await self.run_repo.begin_floor(run, new_floor)
 
-        master_specs = [(e, s) for e, s in enemies if s.role == "master"]
-        minion_specs = [(e, s) for e, s in enemies if s.role == "minion"]
+        master_specs = [(e, s) for e, s in enemies if s.role == ROLE_MASTER]
+        minion_specs = [(e, s) for e, s in enemies if s.role == ROLE_MINION]
 
         await self.log_repo.add(
             run_id=run.id,
