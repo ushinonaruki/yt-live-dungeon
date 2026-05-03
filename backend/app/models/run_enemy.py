@@ -24,7 +24,7 @@ class RunEnemy(Base):
     hp: Mapped[int] = mapped_column(Integer)
     max_hp: Mapped[int] = mapped_column(Integer)
     position: Mapped[int] = mapped_column(Integer)
-    barrier: Mapped[int] = mapped_column(Integer, default=0)
+
     role: Mapped[str] = mapped_column(String(16), nullable=False, default="master")
     is_alive: Mapped[bool] = mapped_column(Boolean, default=True)
     died_at: Mapped[datetime | None] = mapped_column(

@@ -26,7 +26,6 @@ class EnemyRepository:
             floor=floor,
             hp=spec.hp,
             max_hp=spec.max_hp,
-            barrier=spec.barrier,
             position=spec.position,
             role=spec.role,
         )

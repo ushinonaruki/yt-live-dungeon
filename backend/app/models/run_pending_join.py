@@ -20,6 +20,7 @@ class RunPendingJoin(Base):
     )
     youtube_id: Mapped[str] = mapped_column(String(256))
     display_name: Mapped[str] = mapped_column(String(256))
+    oshi_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
     command_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("commands.id"), nullable=True
     )

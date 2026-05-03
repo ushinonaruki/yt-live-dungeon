@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.command_parser import parse
+from app.core.command_parser import ParsedCommand, parse
 from app.models.command import Command
 from app.models.run import Run
 from app.repositories.command_repository import CommandRepository
@@ -30,7 +30,7 @@ class CommandService:
         parsed = parse(event.text)
 
         if parsed.type == "join":
-            result = await self._handle_join(run, command, event)
+            result = await self._handle_join(run, command, event, parsed)
         else:
             result = {"type": parsed.type, "processed": False}
 
@@ -38,13 +38,19 @@ class CommandService:
         return result
 
     async def _handle_join(
-        self, run: Run, command: Command, event: CommandEventIn
+        self,
+        run: Run,
+        command: Command,
+        event: CommandEventIn,
+        parsed: ParsedCommand,
     ) -> dict:
+        oshi_name = parsed.target_name
         inserted = await self.pending_join_repo.add_if_not_exists(
             run_id=run.id,
             youtube_id=event.youtube_id,
             display_name=event.display_name,
             command_id=command.id,
+            oshi_name=oshi_name,
         )
         event_type = "join_pending" if inserted else "join_duplicate"
         await self.log_repo.add(
@@ -53,6 +59,7 @@ class CommandService:
             body={
                 "youtube_id": event.youtube_id,
                 "display_name": event.display_name,
+                "oshi_name": oshi_name,
                 "command_id": str(command.id),
             },
         )

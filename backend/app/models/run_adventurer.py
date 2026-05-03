@@ -33,7 +33,8 @@ class RunAdventurer(Base):
     attr_green: Mapped[int] = mapped_column(Integer)
     attr_purple: Mapped[int] = mapped_column(Integer)
     attr_orange: Mapped[int] = mapped_column(Integer)
-    attr_indigo: Mapped[int] = mapped_column(Integer)
+
+    faith: Mapped[int] = mapped_column(Integer, default=0)
     is_alive: Mapped[bool] = mapped_column(Boolean, default=True)
     joined_floor: Mapped[int] = mapped_column(Integer, default=0)
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

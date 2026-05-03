@@ -42,7 +42,7 @@ class AdventurerRepository:
             attr_green=stats.attr_green,
             attr_purple=stats.attr_purple,
             attr_orange=stats.attr_orange,
-            attr_indigo=stats.attr_indigo,
+            faith=stats.faith,
             joined_floor=floor,
             joined_at=joined_at,
         )

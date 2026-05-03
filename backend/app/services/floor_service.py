@@ -48,7 +48,9 @@ class FloorService:
         # 冒険者生成
         adventurers = []
         for pj in joining:
-            stats = stat_generator.generate()
+            # 推し名が未指定・未登録の場合は faith=0。
+            # 登録テーブルが実装されたら oshi_name でルックアップする。
+            stats = stat_generator.generate(faith=0)
             nickname = nickname_generator.generate(words)
             adv = await self.adventurer_repo.create(
                 run_id=run.id,
@@ -66,7 +68,8 @@ class FloorService:
                 )
             adventurers.append(adv)
 
-        await self.pending_join_repo.clear_by_run(run.id)
+        # 処理済みの予約のみ削除（9人超過分は次フロアに持ち越す）
+        await self.pending_join_repo.delete_by_ids([pj.id for pj in joining])
 
         # 敵生成
         specs = enemy_spawn.spawn(templates, new_floor)
@@ -104,7 +107,6 @@ class FloorService:
                         "display_name": s.display_name,
                         "role": s.role,
                         "hp": s.max_hp,
-                        "barrier": s.barrier,
                     }
                     for e, s in enemies
                 ],
@@ -138,7 +140,6 @@ class FloorService:
                             "role": s.role,
                             "display_name": s.display_name,
                             "hp": s.max_hp,
-                            "barrier": s.barrier,
                         }
                         for e, s in minion_specs
                     ],
