@@ -45,7 +45,6 @@ def calculate_hinokinofuta_damage(stats: AdventurerStats) -> int:
     """effect_id: damage_hinokinofuta の最小ダメージ計算。
 
     現時点では base_value をそのまま無属性ダメージとして返す。
-    TODO: base_value=0（能力値合計が極端に低い場合）を最低1ダメージにするか
-          仕様として0ダメージを許容するかは未決定。現仕様 max(0,...) に従い0を返す。
+    damage=0 でも攻撃はヒット扱い（将来の追加効果を考慮）。
     """
     return calculate_base_value(stats, HINOKINOFUTA_COEFFS)
