@@ -5,11 +5,14 @@ from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.enemy_spawn import ROLE_MASTER
 from app.core.spell_effects import calculate_hinokinofuta_damage
 from app.core.stat_generator import AdventurerStats
+from app.models.run import Run, RunState
 from app.models.run_adventurer import RunAdventurer
 from app.repositories.enemy_repository import EnemyRepository
 from app.repositories.log_repository import LogRepository
+from app.repositories.run_repository import RunRepository
 
 
 @dataclass
@@ -51,17 +54,18 @@ class BattleService:
         self.db = db
         self.enemy_repo = EnemyRepository(db)
         self.log_repo = LogRepository(db)
+        self.run_repo = RunRepository(db)
 
     async def use_hinokinofuta(
         self,
-        run_id: uuid.UUID,
+        run: Run,
         adventurer: RunAdventurer,
     ) -> HinokinofutaResult:
         """ひのきのフタ攻撃処理。生存敵からランダムに1体を選びダメージを与える。"""
-        alive_enemies = await self.enemy_repo.list_alive_by_run(run_id)
+        alive_enemies = await self.enemy_repo.list_alive_by_run(run.id)
         if not alive_enemies:
             await self.log_repo.add(
-                run_id=run_id,
+                run_id=run.id,
                 event_type="spell_no_target",
                 body={
                     "spell": "hinokinofuta",
@@ -87,7 +91,7 @@ class BattleService:
             await self.enemy_repo.update_hp(target_enemy, hp_after)
 
         await self.log_repo.add(
-            run_id=run_id,
+            run_id=run.id,
             event_type="spell_damage",
             body={
                 "spell": "hinokinofuta",
@@ -105,7 +109,7 @@ class BattleService:
 
         if enemy_defeated:
             await self.log_repo.add(
-                run_id=run_id,
+                run_id=run.id,
                 event_type="enemy_defeated",
                 body={
                     "spell": "hinokinofuta",
@@ -115,6 +119,19 @@ class BattleService:
                     "adventurer_nickname": adventurer.nickname,
                 },
             )
+
+            if target_enemy.role == ROLE_MASTER:
+                await self.run_repo.update_state(run, RunState.RESULT)
+                await self.log_repo.add(
+                    run_id=run.id,
+                    event_type="floor_cleared",
+                    body={
+                        "floor": run.current_floor,
+                        "master_enemy_id": str(target_enemy.id),
+                        "master_display_name": target_display_name,
+                        "next_state": RunState.RESULT.value,
+                    },
+                )
 
         return HinokinofutaResult(
             target_enemy_id=target_enemy.id,

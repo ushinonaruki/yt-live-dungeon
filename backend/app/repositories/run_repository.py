@@ -28,3 +28,7 @@ class RunRepository:
         run.current_floor = new_floor
         run.state = RunState.BATTLE
         await self.db.flush()
+
+    async def update_state(self, run: Run, state: RunState) -> None:
+        run.state = state
+        await self.db.flush()

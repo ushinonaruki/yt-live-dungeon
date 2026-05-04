@@ -123,9 +123,7 @@ class CommandService:
             return CommandResult(type="spell", processed=False, reason="on_cooldown")
 
         try:
-            await self.battle_service.use_hinokinofuta(
-                run_id=run.id, adventurer=adventurer
-            )
+            await self.battle_service.use_hinokinofuta(run=run, adventurer=adventurer)
         except NoAliveEnemyError:
             # spell_no_target ログは BattleService 側で出力済み
             return CommandResult(type="spell", processed=False, reason="no_alive_enemy")
