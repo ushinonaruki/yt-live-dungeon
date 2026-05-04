@@ -1,6 +1,8 @@
+import redis.asyncio as aioredis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.command_parser import ParsedCommand, parse
+from app.core.cooldown import is_on_cooldown, set_cooldown
 from app.models.command import Command
 from app.models.run import Run, RunState
 from app.repositories.adventurer_repository import AdventurerRepository
@@ -10,10 +12,13 @@ from app.repositories.pending_join_repository import PendingJoinRepository
 from app.schemas.command import CommandEventIn, CommandResult
 from app.services.battle_service import BattleService, NoAliveEnemyError
 
+_HINOKINOFUTA_COOLDOWN_SECONDS = 20
+
 
 class CommandService:
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(self, db: AsyncSession, redis: aioredis.Redis) -> None:
         self.db = db
+        self.redis = redis
         self.command_repo = CommandRepository(db)
         self.log_repo = LogRepository(db)
         self.pending_join_repo = PendingJoinRepository(db)
@@ -114,6 +119,9 @@ class CommandService:
                 type="spell", processed=False, reason="spell_not_unlocked"
             )
 
+        if await is_on_cooldown(self.redis, adventurer.id):
+            return CommandResult(type="spell", processed=False, reason="on_cooldown")
+
         try:
             await self.battle_service.use_hinokinofuta(
                 run_id=run.id, adventurer=adventurer
@@ -122,4 +130,7 @@ class CommandService:
             # spell_no_target ログは BattleService 側で出力済み
             return CommandResult(type="spell", processed=False, reason="no_alive_enemy")
 
+        await set_cooldown(
+            self.redis, adventurer.id, "hinokinofuta", _HINOKINOFUTA_COOLDOWN_SECONDS
+        )
         return CommandResult(type="spell", processed=True)

@@ -55,7 +55,10 @@ def _make_event(text: str = "@hinokinofuta") -> CommandEventIn:
 
 def _make_service() -> CommandService:
     db = AsyncMock()
-    service = CommandService(db)
+    redis = AsyncMock()
+    redis.exists = AsyncMock(return_value=0)  # not on cooldown by default
+    redis.set = AsyncMock()
+    service = CommandService(db, redis)
     service.command_repo = MagicMock()
     service.command_repo.save = AsyncMock(return_value=MagicMock(id=uuid.uuid4()))
     service.log_repo = MagicMock()
@@ -185,6 +188,71 @@ async def test_hinokinofuta_logs_are_delegated_to_battle_service():
 
     # command_service 側では log_repo.add を呼ばない（ログは battle_service に委譲）
     service.log_repo.add.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_hinokinofuta_on_cooldown():
+    """クールタイム中は on_cooldown で不発。BattleService は呼ばれない。"""
+    service = _make_service()
+    adv = _make_adventurer()
+    service.adventurer_repo.get_alive_by_youtube_id = AsyncMock(return_value=adv)
+    service.adventurer_repo.has_item_unlocking_spell = AsyncMock(return_value=True)
+    service.redis.exists = AsyncMock(return_value=1)  # on cooldown
+
+    result = await service.process(_make_run(RunState.BATTLE), _make_event())
+
+    assert result.processed is False
+    assert result.reason == "on_cooldown"
+    service.battle_service.use_hinokinofuta.assert_not_called()
+    service.redis.set.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_hinokinofuta_sets_cooldown_on_success():
+    """正常発動後に Redis に TTL=20秒でクールタイムが設定される。"""
+    service = _make_service()
+    adv = _make_adventurer()
+    service.adventurer_repo.get_alive_by_youtube_id = AsyncMock(return_value=adv)
+    service.adventurer_repo.has_item_unlocking_spell = AsyncMock(return_value=True)
+    service.battle_service.use_hinokinofuta = AsyncMock(
+        return_value=_hinokinofuta_result()
+    )
+
+    result = await service.process(_make_run(RunState.BATTLE), _make_event())
+
+    assert result.processed is True
+    service.redis.set.assert_called_once()
+    call_args = service.redis.set.call_args
+    assert call_args.args[0] == f"cooldown:adventurer:{adv.id}"
+    assert call_args.kwargs.get("ex") == 20
+
+
+@pytest.mark.anyio
+async def test_hinokinofuta_no_cooldown_on_no_alive_enemy():
+    """no_alive_enemy の場合、クールタイムを設定しない。"""
+    service = _make_service()
+    adv = _make_adventurer()
+    service.adventurer_repo.get_alive_by_youtube_id = AsyncMock(return_value=adv)
+    service.adventurer_repo.has_item_unlocking_spell = AsyncMock(return_value=True)
+    service.battle_service.use_hinokinofuta = AsyncMock(side_effect=NoAliveEnemyError())
+
+    result = await service.process(_make_run(RunState.BATTLE), _make_event())
+
+    assert result.processed is False
+    assert result.reason == "no_alive_enemy"
+    service.redis.set.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_hinokinofuta_no_cooldown_on_not_joined():
+    """not_joined の場合、クールタイムを設定しない。"""
+    service = _make_service()
+    service.adventurer_repo.get_alive_by_youtube_id = AsyncMock(return_value=None)
+
+    result = await service.process(_make_run(RunState.BATTLE), _make_event())
+
+    assert result.reason == "not_joined"
+    service.redis.set.assert_not_called()
 
 
 @pytest.mark.anyio
