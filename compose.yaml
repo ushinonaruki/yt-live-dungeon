@@ -1,4 +1,20 @@
 services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:${POSTGRES_PORT_CONTAINER}/${POSTGRES_DB}
+      REDIS_URL: redis://redis:${REDIS_PORT_CONTAINER}
+    ports:
+      - "${API_PORT_HOST}:${API_PORT_CONTAINER}"
+    depends_on:
+      - postgres
+      - redis
+
   postgres:
     build:
       context: ./docker/postgres
