@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +12,7 @@ from yt_live_dungeon.api.schemas.camp import (
 )
 from yt_live_dungeon.api.schemas.event import EventListResponse, EventResponse
 from yt_live_dungeon.api.schemas.run_state import RunStateResponse
+from yt_live_dungeon.features.camp.deadline import ensure_camp_deadline_evaluated
 from yt_live_dungeon.features.camp.state import CampStateData, get_camp_state
 from yt_live_dungeon.persistence.queries.event import list_events_after
 from yt_live_dungeon.persistence.queries.run import get_run
@@ -59,6 +61,14 @@ async def get_run_state(
     run = await get_run(session, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="run not found")
+
+    # The GET route is the only entry point for state polling, so it must
+    # itself evaluate (and, if needed, enforce) the CAMP deadline rather
+    # than relying solely on the next command to notice it -- there is no
+    # resident scheduler. This is the transaction owner for that possible
+    # mutation; nothing upstream commits on its behalf.
+    await ensure_camp_deadline_evaluated(session, run_id, now=datetime.now(UTC))
+    await session.commit()
 
     camp_state = await get_camp_state(session, run)
 

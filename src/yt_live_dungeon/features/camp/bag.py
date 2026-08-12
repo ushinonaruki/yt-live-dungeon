@@ -10,7 +10,10 @@ from yt_live_dungeon.persistence.queries.spell import get_spell
 async def handle_bag(command: Bag, context: CommandContext) -> CommandOutcome:
     session = context.session
     resolved = await resolve_camp_session(
-        session, context.run_id, context.command_input.viewer_id
+        session,
+        context.run_id,
+        context.command_input.viewer_id,
+        now=context.command_input.received_at,
     )
     if isinstance(resolved, CommandOutcome):
         return resolved

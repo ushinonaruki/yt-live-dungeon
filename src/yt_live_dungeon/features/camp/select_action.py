@@ -29,7 +29,11 @@ REST_HP_GAIN = 100
 async def handle_select(command: Select, context: CommandContext) -> CommandOutcome:
     session = context.session
     resolved = await resolve_camp_session(
-        session, context.run_id, context.command_input.viewer_id, lock_run=True
+        session,
+        context.run_id,
+        context.command_input.viewer_id,
+        now=context.command_input.received_at,
+        lock_run=True,
     )
     if isinstance(resolved, CommandOutcome):
         return resolved

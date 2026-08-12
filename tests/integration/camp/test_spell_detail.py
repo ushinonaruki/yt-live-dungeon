@@ -1,3 +1,4 @@
+import random
 import uuid
 from datetime import UTC, datetime
 
@@ -28,6 +29,7 @@ def _context(session, run_id, viewer_id: str, command: str) -> CommandContext:
             raw_text=f"@{command}",
             received_at=NOW,
         ),
+        random_source=random.Random(),
     )
 
 

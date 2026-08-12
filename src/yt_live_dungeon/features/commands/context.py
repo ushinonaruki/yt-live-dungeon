@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from yt_live_dungeon.domain.random_source import RandomSource
 from yt_live_dungeon.features.commands.types import CommandInput
 
 
@@ -18,3 +19,4 @@ class CommandContext:
     session: AsyncSession
     run_id: uuid.UUID
     command_input: CommandInput
+    random_source: RandomSource

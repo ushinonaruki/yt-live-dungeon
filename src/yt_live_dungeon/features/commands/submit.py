@@ -1,9 +1,11 @@
+import random
 import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from yt_live_dungeon.domain.random_source import RandomSource
 from yt_live_dungeon.features.commands.context import CommandContext
 from yt_live_dungeon.features.commands.dispatch import CommandOutcome, HandlerRegistry, dispatch
 from yt_live_dungeon.features.commands.parse import Unknown, parse
@@ -20,6 +22,7 @@ async def submit_command(
     run_id: uuid.UUID,
     command_input: CommandInput,
     handlers: HandlerRegistry | None = None,
+    random_source: RandomSource | None = None,
 ) -> ProcessedCommand:
     """Record a command idempotently and return its processed_commands row.
 
@@ -32,7 +35,9 @@ async def submit_command(
 
     `handlers` is supplied per call (never a module-global registry), so
     concurrent or unrelated submissions can never see each other's
-    handlers or context.
+    handlers or context. `random_source` is likewise per-call, defaulting
+    to a fresh `random.Random()` when omitted; tests pass a seeded one
+    for reproducible draws (e.g. @login's spirit/item selection).
     """
     existing = await find_by_source_and_message_id(
         session, command_input.source, command_input.source_message_id
@@ -75,7 +80,9 @@ async def submit_command(
             raise
         return existing
 
-    outcome = await _process(command_input, run_id, session, handlers or {})
+    outcome = await _process(
+        command_input, run_id, session, handlers or {}, random_source or random.Random()
+    )
 
     provisional.processed = outcome.processed
     provisional.reason = outcome.reason
@@ -91,10 +98,13 @@ async def _process(
     run_id: uuid.UUID,
     session: AsyncSession,
     handlers: HandlerRegistry,
+    random_source: RandomSource,
 ) -> CommandOutcome:
     parsed = parse(command_input.raw_text)
     if isinstance(parsed, Unknown):
         return CommandOutcome(processed=False, reason=parsed.reason, result=None)
 
-    context = CommandContext(session=session, run_id=run_id, command_input=command_input)
+    context = CommandContext(
+        session=session, run_id=run_id, command_input=command_input, random_source=random_source
+    )
     return await dispatch(parsed, handlers, context)

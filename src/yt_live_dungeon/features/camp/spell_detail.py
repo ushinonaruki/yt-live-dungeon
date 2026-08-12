@@ -13,7 +13,10 @@ SPELL_NOT_UNLOCKED = "spell_not_unlocked"
 async def handle_spell(command: Spell, context: CommandContext) -> CommandOutcome:
     session = context.session
     resolved = await resolve_camp_session(
-        session, context.run_id, context.command_input.viewer_id
+        session,
+        context.run_id,
+        context.command_input.viewer_id,
+        now=context.command_input.received_at,
     )
     if isinstance(resolved, CommandOutcome):
         return resolved
