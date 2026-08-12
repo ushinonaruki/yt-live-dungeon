@@ -110,6 +110,7 @@ def _context(session, run_id, viewer_id: str, raw_text: str) -> CommandContext:
             raw_text=raw_text,
             received_at=NOW,
         ),
+        random_source=random.Random(),
     )
 
 

@@ -14,7 +14,10 @@ from yt_live_dungeon.persistence.queries.inventory import (
 async def handle_move(command: Move, context: CommandContext) -> CommandOutcome:
     session = context.session
     resolved = await resolve_camp_session(
-        session, context.run_id, context.command_input.viewer_id
+        session,
+        context.run_id,
+        context.command_input.viewer_id,
+        now=context.command_input.received_at,
     )
     if isinstance(resolved, CommandOutcome):
         return resolved

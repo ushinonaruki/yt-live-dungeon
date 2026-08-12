@@ -23,7 +23,7 @@ def _unique(label: str) -> str:
     return f"{label}-{uuid.uuid4().hex[:8]}"
 
 
-async def _create_camp_scenario():
+async def _create_camp_scenario(*, started_at: datetime | None = None):
     async with async_session_factory() as session:
         spell = Spell(
             command=_unique("spell"),
@@ -74,7 +74,12 @@ async def _create_camp_scenario():
         session.add_all([adventurer_1, adventurer_2])
         await session.flush()
 
-        started_at = datetime(2026, 1, 1, tzinfo=UTC)
+        # Deliberately anchored to real wall-clock time by default, not a
+        # fixed past timestamp: state fetches now evaluate the CAMP
+        # deadline against datetime.now(UTC), so a hardcoded past
+        # started_at would make this scenario read as already-expired
+        # unless a caller deliberately opts into that via the parameter.
+        started_at = started_at or datetime.now(UTC)
         camp = RunCamp(
             run_id=run.id,
             floor=2,
@@ -184,3 +189,18 @@ async def test_events_after_returns_camp_action_event_triggered_via_command(clie
     assert len(events) == 1
     assert events[0]["event_type"] == "camp_action_selected"
     assert events[0]["body"]["adventurer"] == str(adventurer_1.id)
+
+
+async def test_state_fetch_alone_detects_and_enforces_a_passed_deadline(client):
+    """There is no resident scheduler in this headless build -- a GET
+    /state call is itself an entry point that must notice and enforce an
+    expired CAMP, with no command required first."""
+    long_past = datetime.now(UTC) - timedelta(hours=1)
+    run_id, _camp, *_ = await _create_camp_scenario(started_at=long_past)
+
+    response = await client.get(f"/api/v1/runs/{run_id}/state")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["state"] == "battle"
+    assert body["camp"] is None

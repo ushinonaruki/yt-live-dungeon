@@ -8,6 +8,16 @@ async def get_spirit(session: AsyncSession, spirit_id: int) -> Spirit | None:
     return await session.get(Spirit, spirit_id)
 
 
+async def list_active_spirit_ids(session: AsyncSession) -> list[int]:
+    """Active spirit ids, ordered by id for a deterministic draw
+    population (see list_active_pool_item_ids for why the ORDER BY
+    matters for a seeded RandomSource.sample())."""
+    result = await session.execute(
+        select(Spirit.id).where(Spirit.is_active.is_(True)).order_by(Spirit.id)
+    )
+    return list(result.scalars().all())
+
+
 async def list_active_pool_item_ids(session: AsyncSession, spirit_id: int) -> list[int]:
     """Active pool item ids for one spirit, ordered by item_id.
 

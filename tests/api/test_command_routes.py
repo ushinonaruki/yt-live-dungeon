@@ -33,16 +33,6 @@ async def _processed_command_count(source: str, source_message_id: str) -> int:
         return result.scalar_one()
 
 
-async def test_recognized_command_is_recorded_as_not_implemented(client, existing_run):
-    response = await client.post(
-        f"/api/v1/runs/{existing_run.id}/commands", json=_payload()
-    )
-
-    assert response.status_code == 200
-    body = response.json()
-    assert body == {"processed": False, "reason": "not_implemented", "result": None}
-
-
 async def test_invalid_syntax_command_is_recorded_as_invalid_syntax(client, existing_run):
     response = await client.post(
         f"/api/v1/runs/{existing_run.id}/commands",

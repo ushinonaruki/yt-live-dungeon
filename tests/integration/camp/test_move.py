@@ -1,3 +1,4 @@
+import random
 import uuid
 from datetime import UTC, datetime
 from types import SimpleNamespace
@@ -70,6 +71,7 @@ def _move_context(session, run_id, viewer_id: str, order: str) -> CommandContext
             raw_text=f"@move {order}",
             received_at=NOW,
         ),
+        random_source=random.Random(),
     )
 
 
