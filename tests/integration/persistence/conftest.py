@@ -2,7 +2,16 @@ import pytest
 import pytest_asyncio
 
 from yt_live_dungeon.persistence.database import async_session_factory
-from yt_live_dungeon.persistence.models import Item, Run, RunAdventurer, Spell, Spirit
+from yt_live_dungeon.persistence.models import (
+    Enemy,
+    EnemyGroup,
+    EnemyGroupMember,
+    Item,
+    Run,
+    RunAdventurer,
+    Spell,
+    Spirit,
+)
 
 
 @pytest_asyncio.fixture
@@ -99,5 +108,42 @@ def adventurer_factory(db_session):
         db_session.add(adventurer)
         await db_session.flush()
         return adventurer
+
+    return _create
+
+
+@pytest.fixture
+def enemy_factory(db_session):
+    async def _create(**overrides) -> Enemy:
+        defaults = dict(
+            enemy_key="test_enemy",
+            display_name="test enemy",
+            base_max_hp=100,
+            base_max_mp=20,
+            base_attributes={},
+            break_max=50,
+            is_active=True,
+        )
+        defaults.update(overrides)
+        enemy = Enemy(**defaults)
+        db_session.add(enemy)
+        await db_session.flush()
+        return enemy
+
+    return _create
+
+
+@pytest.fixture
+def enemy_group_factory(db_session):
+    async def _create(members: list[dict], **overrides) -> EnemyGroup:
+        defaults = dict(group_key="test_group", display_name="test group", is_active=True)
+        defaults.update(overrides)
+        group = EnemyGroup(**defaults)
+        db_session.add(group)
+        await db_session.flush()
+        for member in members:
+            db_session.add(EnemyGroupMember(group_id=group.id, **member))
+        await db_session.flush()
+        return group
 
     return _create

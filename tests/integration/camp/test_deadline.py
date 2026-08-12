@@ -1,3 +1,4 @@
+import random
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -24,6 +25,8 @@ async def _setup_camp_with_members(
     adventurer_factory,
     camp_factory,
     camp_member_factory,
+    enemy_factory,
+    enemy_group_factory,
     *,
     member_count: int = 2,
     ready_flags: list[bool] | None = None,
@@ -36,7 +39,12 @@ async def _setup_camp_with_members(
     await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_a.id)
     await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_b.id)
 
-    run = await run_factory(state=RunState.CAMP, current_floor=1)
+    enemy = await enemy_factory()
+    group = await enemy_group_factory(
+        members=[{"order_in_group": 1, "enemy_id": enemy.id, "role": "master"}]
+    )
+
+    run = await run_factory(state=RunState.CAMP, current_floor=1, next_group_id=group.id)
     camp = await camp_factory(
         run_id=run.id,
         spirit_id=spirit.id,
@@ -71,6 +79,8 @@ async def test_deadline_not_yet_reached_leaves_camp_open(
     adventurer_factory,
     camp_factory,
     camp_member_factory,
+    enemy_factory,
+    enemy_group_factory,
 ):
     run, camp, _adventurers = await _setup_camp_with_members(
         spell_factory,
@@ -81,10 +91,14 @@ async def test_deadline_not_yet_reached_leaves_camp_open(
         adventurer_factory,
         camp_factory,
         camp_member_factory,
+        enemy_factory,
+        enemy_group_factory,
     )
 
     just_before = DEADLINE_AT - timedelta(seconds=1)
-    await ensure_camp_deadline_evaluated(db_session, run.id, now=just_before)
+    await ensure_camp_deadline_evaluated(
+        db_session, run.id, now=just_before, random_source=random.Random(1)
+    )
 
     await db_session.refresh(run)
     assert run.state == RunState.CAMP
@@ -102,6 +116,8 @@ async def test_deadline_reached_exactly_forces_ready_and_ends_camp(
     adventurer_factory,
     camp_factory,
     camp_member_factory,
+    enemy_factory,
+    enemy_group_factory,
 ):
     run, camp, [a, b] = await _setup_camp_with_members(
         spell_factory,
@@ -112,10 +128,14 @@ async def test_deadline_reached_exactly_forces_ready_and_ends_camp(
         adventurer_factory,
         camp_factory,
         camp_member_factory,
+        enemy_factory,
+        enemy_group_factory,
         ready_flags=[False, False],
     )
 
-    await ensure_camp_deadline_evaluated(db_session, run.id, now=DEADLINE_AT)
+    await ensure_camp_deadline_evaluated(
+        db_session, run.id, now=DEADLINE_AT, random_source=random.Random(1)
+    )
 
     member_a = await get_camp_member(db_session, camp.id, a.id)
     member_b = await get_camp_member(db_session, camp.id, b.id)
@@ -154,6 +174,8 @@ async def test_deadline_evaluation_does_not_force_ready_on_already_ready_members
     adventurer_factory,
     camp_factory,
     camp_member_factory,
+    enemy_factory,
+    enemy_group_factory,
 ):
     run, camp, [a, _b] = await _setup_camp_with_members(
         spell_factory,
@@ -164,10 +186,14 @@ async def test_deadline_evaluation_does_not_force_ready_on_already_ready_members
         adventurer_factory,
         camp_factory,
         camp_member_factory,
+        enemy_factory,
+        enemy_group_factory,
         ready_flags=[True, False],
     )
 
-    await ensure_camp_deadline_evaluated(db_session, run.id, now=DEADLINE_AT)
+    await ensure_camp_deadline_evaluated(
+        db_session, run.id, now=DEADLINE_AT, random_source=random.Random(1)
+    )
 
     member_a = await get_camp_member(db_session, camp.id, a.id)
     assert member_a.ready_at == STARTED_AT  # untouched -- was already ready
@@ -192,6 +218,8 @@ async def test_deadline_evaluation_is_idempotent_once_camp_has_ended(
     adventurer_factory,
     camp_factory,
     camp_member_factory,
+    enemy_factory,
+    enemy_group_factory,
 ):
     run, camp, _adventurers = await _setup_camp_with_members(
         spell_factory,
@@ -202,10 +230,16 @@ async def test_deadline_evaluation_is_idempotent_once_camp_has_ended(
         adventurer_factory,
         camp_factory,
         camp_member_factory,
+        enemy_factory,
+        enemy_group_factory,
     )
 
-    await ensure_camp_deadline_evaluated(db_session, run.id, now=DEADLINE_AT)
-    await ensure_camp_deadline_evaluated(db_session, run.id, now=DEADLINE_AT + timedelta(hours=1))
+    await ensure_camp_deadline_evaluated(
+        db_session, run.id, now=DEADLINE_AT, random_source=random.Random(1)
+    )
+    await ensure_camp_deadline_evaluated(
+        db_session, run.id, now=DEADLINE_AT + timedelta(hours=1), random_source=random.Random(1)
+    )
 
     camp_ended_events = (
         await db_session.execute(
@@ -220,6 +254,8 @@ async def test_deadline_evaluation_is_a_no_op_when_run_is_not_in_camp(
 ):
     run = await run_factory(state=RunState.BATTLE, current_floor=1)
 
-    result = await ensure_camp_deadline_evaluated(db_session, run.id, now=DEADLINE_AT)
+    result = await ensure_camp_deadline_evaluated(
+        db_session, run.id, now=DEADLINE_AT, random_source=random.Random(1)
+    )
 
     assert result.state == RunState.BATTLE

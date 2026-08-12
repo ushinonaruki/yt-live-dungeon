@@ -14,6 +14,7 @@ async def handle_bag(command: Bag, context: CommandContext) -> CommandOutcome:
         context.run_id,
         context.command_input.viewer_id,
         now=context.command_input.received_at,
+        random_source=context.random_source,
     )
     if isinstance(resolved, CommandOutcome):
         return resolved

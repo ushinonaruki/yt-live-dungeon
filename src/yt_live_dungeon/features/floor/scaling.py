@@ -3,8 +3,8 @@ from dataclasses import dataclass
 
 from yt_live_dungeon.domain.attributes import ATTRIBUTE_MODIFIER_KEYS
 
-HP_SCALING_PER_FLOOR = 0.25
-ATTRIBUTE_BONUS_PER_FLOOR = 5
+HP_SCALING_PER_FLOOR = 0.10
+ATTRIBUTE_BONUS_PER_FLOOR = 1
 
 
 @dataclass(frozen=True)
@@ -16,13 +16,14 @@ class EnemyFloorStats:
 def calculate_enemy_floor_stats(
     base_max_hp: int, base_attributes: dict[str, int], floor: int
 ) -> EnemyFloorStats:
-    """Floor-scaled enemy max HP and 10-attribute values.
+    """Floor-scaled enemy max HP and 10-attribute values, per
+    obsidian/YTL100ダンジョン/ダンジョン/フロア補正.md (the sole authority
+    for these two formulas):
 
-    max_hp = floor(base_max_hp * (1 + 0.25 * (floor - 1)))
-    attributes[key] = base_attributes[key] + 5 * (floor - 1)
+    max_hp = floor(base_max_hp * (1 + 0.10 * (floor - 1)))
+    attributes[key] = base_attributes[key] + 1 * (floor - 1)
 
-    Participant count is intentionally not a factor here -- the earlier
-    per-participant attribute bonus was dropped from the confirmed spec.
+    Floor 1 applies no correction. Participant count is never a factor.
     Max MP, MP regen, spell power, MP cost, weak/break/chain are untouched
     by floor scaling and are not computed by this function.
     """

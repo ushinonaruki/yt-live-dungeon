@@ -3,6 +3,7 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from yt_live_dungeon.domain.random_source import RandomSource
 from yt_live_dungeon.features.camp.end import end_camp
 from yt_live_dungeon.persistence.models import Run, RunState
 from yt_live_dungeon.persistence.queries.camp import get_open_camp, list_camp_members
@@ -11,7 +12,7 @@ from yt_live_dungeon.persistence.queries.run import get_run, get_run_for_update
 
 
 async def ensure_camp_deadline_evaluated(
-    session: AsyncSession, run_id: uuid.UUID, *, now: datetime
+    session: AsyncSession, run_id: uuid.UUID, *, now: datetime, random_source: RandomSource
 ) -> Run | None:
     """If the current floor's open CAMP has passed its deadline, forces
     ready_at on every still-participating, not-yet-ready member and ends
@@ -50,5 +51,5 @@ async def ensure_camp_deadline_evaluated(
                 {"adventurer": str(adventurer.id), "reason": "timeout"},
             )
 
-    await end_camp(session, run, camp, now=now, reason="timeout")
+    await end_camp(session, run, camp, now=now, reason="timeout", random_source=random_source)
     return run

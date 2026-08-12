@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, Integer, func
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -34,6 +34,13 @@ class Run(Base):
         default=RunState.WAITING,
     )
     current_floor: Mapped[int] = mapped_column(Integer, default=1)
+    # The group already drawn and confirmed for run.current_floor + 1.
+    # Never drawn "on demand" at floor start -- start_next_floor() only
+    # ever consumes this. Null once floor 100 has been consumed (there
+    # is no floor 101 to hold a next group for).
+    next_group_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("master.enemy_groups.id"), nullable=True
+    )
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

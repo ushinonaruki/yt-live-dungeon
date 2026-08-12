@@ -3,6 +3,9 @@ from datetime import UTC, datetime, timedelta
 
 from yt_live_dungeon.persistence.database import async_session_factory
 from yt_live_dungeon.persistence.models import (
+    Enemy,
+    EnemyGroup,
+    EnemyGroupMember,
     Item,
     Run,
     RunAdventurer,
@@ -71,7 +74,27 @@ async def _create_open_camp_scenario():
         session.add(SpiritItemPoolEntry(spirit_id=spirit.id, item_id=pool_item_a.id))
         session.add(SpiritItemPoolEntry(spirit_id=spirit.id, item_id=pool_item_b.id))
 
-        run = Run(state=RunState.CAMP, current_floor=1)
+        enemy = Enemy(
+            enemy_key=_unique("enemy"),
+            display_name="Test Enemy",
+            base_max_hp=100,
+            base_max_mp=20,
+            base_attributes={},
+            break_max=50,
+        )
+        session.add(enemy)
+        await session.flush()
+        enemy_group = EnemyGroup(group_key=_unique("group"), display_name="Test Group")
+        session.add(enemy_group)
+        await session.flush()
+        session.add(
+            EnemyGroupMember(
+                group_id=enemy_group.id, order_in_group=1, enemy_id=enemy.id, role="master"
+            )
+        )
+        await session.flush()
+
+        run = Run(state=RunState.CAMP, current_floor=1, next_group_id=enemy_group.id)
         session.add(run)
         await session.flush()
 

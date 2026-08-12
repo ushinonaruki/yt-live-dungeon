@@ -2,6 +2,7 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from yt_live_dungeon.domain.random_source import RandomSource
 from yt_live_dungeon.features.floor.start import start_next_floor
 from yt_live_dungeon.persistence.models import Run, RunCamp, RunState
 from yt_live_dungeon.persistence.queries.adventurer import list_active_participants
@@ -9,7 +10,13 @@ from yt_live_dungeon.persistence.queries.event import append_event
 
 
 async def end_camp(
-    session: AsyncSession, run: Run, camp: RunCamp, *, now: datetime, reason: str
+    session: AsyncSession,
+    run: Run,
+    camp: RunCamp,
+    *,
+    now: datetime,
+    reason: str,
+    random_source: RandomSource,
 ) -> None:
     """Idempotently ends `camp` and transitions `run` onward: to BATTLE
     (next floor, carrying over currently participating adventurers) if
@@ -24,7 +31,9 @@ async def end_camp(
 
     `reason` records why the caller ended the CAMP now (e.g. "all_ready",
     "timeout", "empty") on the camp_ended event, for observability only
-    -- it does not change what this function does.
+    -- it does not change what this function does. `random_source` is
+    only used when participants remain (to draw the next floor's saved
+    next_group via start_next_floor()).
     """
     if camp.ended_at is not None:
         return
@@ -45,4 +54,4 @@ async def end_camp(
         await append_event(session, run.id, "run_retired", {"floor": camp.floor})
         return
 
-    await start_next_floor(session, run, participants, now=now)
+    await start_next_floor(session, run, participants, now=now, random_source=random_source)

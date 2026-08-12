@@ -3,8 +3,18 @@ import uuid
 import pytest
 import pytest_asyncio
 
+from yt_live_dungeon.domain.attributes import ATTRIBUTE_MODIFIER_KEYS
 from yt_live_dungeon.persistence.database import async_session_factory
-from yt_live_dungeon.persistence.models import Item, Run, RunAdventurer, RunAdventurerItem, Spell
+from yt_live_dungeon.persistence.models import (
+    Enemy,
+    EnemyGroup,
+    EnemyGroupMember,
+    Item,
+    Run,
+    RunAdventurer,
+    RunAdventurerItem,
+    Spell,
+)
 
 
 def unique(label: str) -> str:
@@ -111,5 +121,45 @@ def inventory_item_factory(db_session):
         db_session.add(row)
         await db_session.flush()
         return row
+
+    return _create
+
+
+@pytest.fixture
+def enemy_factory(db_session):
+    async def _create(**overrides) -> Enemy:
+        defaults = dict(
+            enemy_key=unique("enemy"),
+            display_name="test enemy",
+            base_max_hp=100,
+            base_max_mp=20,
+            base_attributes=dict.fromkeys(ATTRIBUTE_MODIFIER_KEYS, 5),
+            weak_attribute=None,
+            break_max=50,
+            ai_policy_key="random_v1",
+            ai_policy_config={},
+            is_active=True,
+        )
+        defaults.update(overrides)
+        enemy = Enemy(**defaults)
+        db_session.add(enemy)
+        await db_session.flush()
+        return enemy
+
+    return _create
+
+
+@pytest.fixture
+def enemy_group_factory(db_session):
+    async def _create(members: list[dict], **overrides) -> EnemyGroup:
+        defaults = dict(group_key=unique("group"), display_name="test group", is_active=True)
+        defaults.update(overrides)
+        group = EnemyGroup(**defaults)
+        db_session.add(group)
+        await db_session.flush()
+        for member in members:
+            db_session.add(EnemyGroupMember(group_id=group.id, **member))
+        await db_session.flush()
+        return group
 
     return _create

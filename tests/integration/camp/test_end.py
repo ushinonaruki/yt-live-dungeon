@@ -1,3 +1,4 @@
+import random
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -8,6 +9,9 @@ from yt_live_dungeon.domain.errors import InvalidStatModifierError
 from yt_live_dungeon.features.camp.end import end_camp
 from yt_live_dungeon.persistence.database import async_session_factory
 from yt_live_dungeon.persistence.models import (
+    Enemy,
+    EnemyGroup,
+    EnemyGroupMember,
     Item,
     Run,
     RunAdventurer,
@@ -64,7 +68,9 @@ async def test_end_camp_is_idempotent_when_already_ended(
     )
     camp.ended_at = NOW
 
-    await end_camp(db_session, run, camp, now=NOW, reason="all_ready")
+    await end_camp(
+        db_session, run, camp, now=NOW, reason="all_ready", random_source=random.Random(1)
+    )
 
     count = (
         await db_session.execute(
@@ -84,7 +90,7 @@ async def test_end_camp_retires_when_no_participants(
         spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory, camp_factory
     )
 
-    await end_camp(db_session, run, camp, now=NOW, reason="empty")
+    await end_camp(db_session, run, camp, now=NOW, reason="empty", random_source=random.Random(1))
 
     assert camp.ended_at == NOW
     assert run.state == RunState.RETIRE
@@ -93,14 +99,21 @@ async def test_end_camp_retires_when_no_participants(
 
 async def test_end_camp_starts_next_floor_when_participants_remain(
     db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory,
-    camp_factory, adventurer_factory,
+    camp_factory, adventurer_factory, enemy_factory, enemy_group_factory,
 ):
     run, camp = await _setup_camp(
         spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory, camp_factory
     )
+    enemy = await enemy_factory()
+    group = await enemy_group_factory(
+        members=[{"order_in_group": 1, "enemy_id": enemy.id, "role": "master"}]
+    )
+    run.next_group_id = group.id
     await adventurer_factory(run_id=run.id, hp=200, mp=10)
 
-    await end_camp(db_session, run, camp, now=NOW, reason="all_ready")
+    await end_camp(
+        db_session, run, camp, now=NOW, reason="all_ready", random_source=random.Random(1)
+    )
 
     assert camp.ended_at == NOW
     assert run.state == RunState.BATTLE
@@ -109,15 +122,22 @@ async def test_end_camp_starts_next_floor_when_participants_remain(
 
 async def test_end_camp_records_camp_ended_event_with_reason_and_participant_count(
     db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory,
-    camp_factory, adventurer_factory,
+    camp_factory, adventurer_factory, enemy_factory, enemy_group_factory,
 ):
     run, camp = await _setup_camp(
         spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory, camp_factory
     )
+    enemy = await enemy_factory()
+    group = await enemy_group_factory(
+        members=[{"order_in_group": 1, "enemy_id": enemy.id, "role": "master"}]
+    )
+    run.next_group_id = group.id
     await adventurer_factory(run_id=run.id)
     await adventurer_factory(run_id=run.id)
 
-    await end_camp(db_session, run, camp, now=NOW, reason="all_ready")
+    await end_camp(
+        db_session, run, camp, now=NOW, reason="all_ready", random_source=random.Random(1)
+    )
 
     event = (
         await db_session.execute(
@@ -182,7 +202,27 @@ async def test_floor_generation_failure_does_not_leave_camp_ended_alone():
         session.add(SpiritItemPoolEntry(spirit_id=spirit.id, item_id=candidate_a.id))
         session.add(SpiritItemPoolEntry(spirit_id=spirit.id, item_id=candidate_b.id))
 
-        run = Run(state=RunState.CAMP, current_floor=1)
+        enemy = Enemy(
+            enemy_key=_unique("enemy"),
+            display_name="e",
+            base_max_hp=100,
+            base_max_mp=20,
+            base_attributes={},
+            break_max=50,
+        )
+        session.add(enemy)
+        await session.flush()
+        enemy_group = EnemyGroup(group_key=_unique("group"), display_name="g")
+        session.add(enemy_group)
+        await session.flush()
+        session.add(
+            EnemyGroupMember(
+                group_id=enemy_group.id, order_in_group=1, enemy_id=enemy.id, role="master"
+            )
+        )
+        await session.flush()
+
+        run = Run(state=RunState.CAMP, current_floor=1, next_group_id=enemy_group.id)
         session.add(run)
         await session.flush()
 
@@ -222,7 +262,9 @@ async def test_floor_generation_failure_does_not_leave_camp_ended_alone():
         camp = await get_open_camp(session, run_id, run.current_floor)
 
         with pytest.raises(InvalidStatModifierError):
-            await end_camp(session, run, camp, now=NOW, reason="all_ready")
+            await end_camp(
+                session, run, camp, now=NOW, reason="all_ready", random_source=random.Random(1)
+            )
 
         # deliberately never commits -- mirrors the exception propagating
         # out of a real handler before submit_command()'s single commit()

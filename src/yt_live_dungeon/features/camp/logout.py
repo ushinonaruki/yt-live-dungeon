@@ -17,6 +17,7 @@ async def handle_logout(command: Logout, context: CommandContext) -> CommandOutc
         context.run_id,
         context.command_input.viewer_id,
         now=now,
+        random_source=context.random_source,
         lock_run=True,
     )
     if isinstance(resolved, CommandOutcome):
@@ -36,8 +37,12 @@ async def handle_logout(command: Logout, context: CommandContext) -> CommandOutc
 
     remaining_participants = await list_active_participants(session, run.id)
     if not remaining_participants:
-        await end_camp(session, run, camp, now=now, reason="empty")
+        await end_camp(
+            session, run, camp, now=now, reason="empty", random_source=context.random_source
+        )
     elif await all_active_participants_ready(session, run.id, camp.id):
-        await end_camp(session, run, camp, now=now, reason="all_ready")
+        await end_camp(
+            session, run, camp, now=now, reason="all_ready", random_source=context.random_source
+        )
 
     return CommandOutcome(processed=True, reason=None, result=None)

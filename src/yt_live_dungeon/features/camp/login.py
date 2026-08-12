@@ -44,7 +44,9 @@ async def handle_login(command: Login, context: CommandContext) -> CommandOutcom
     now = context.command_input.received_at
     viewer_id = context.command_input.viewer_id
 
-    resolved = await resolve_camp_only(session, context.run_id, now=now, lock_run=True)
+    resolved = await resolve_camp_only(
+        session, context.run_id, now=now, random_source=context.random_source, lock_run=True
+    )
     if isinstance(resolved, CommandOutcome):
         return resolved
     run, camp = resolved.run, resolved.camp
