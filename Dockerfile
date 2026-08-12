@@ -13,7 +13,7 @@ RUN groupadd --system app && \
 
 FROM base AS source
 
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock alembic.ini ./
 COPY src ./src
 
 FROM source AS production

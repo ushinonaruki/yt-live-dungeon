@@ -1,0 +1,157 @@
+# テスト用仮データ。最終コンテンツではない。
+spells:
+  - command: spell_blessing_flame
+    display_name: 炎の祝福(仮)
+    attribute: RR
+    mp_cost: 10
+    target_rule: single_enemy
+    effects:
+      - type: damage
+        power: 10
+    is_active: true
+  - command: spell_pool_flame_1
+    display_name: 火花(仮)
+    attribute: RR
+    mp_cost: 5
+    target_rule: single_enemy
+    effects:
+      - type: damage
+        power: 5
+    is_active: true
+  - command: spell_pool_flame_2
+    display_name: 陽光(仮)
+    attribute: YR
+    mp_cost: 5
+    target_rule: single_enemy
+    effects:
+      - type: damage
+        power: 5
+    is_active: true
+  - command: spell_blessing_tide
+    display_name: 潮の祝福(仮)
+    attribute: BB
+    mp_cost: 10
+    target_rule: single_enemy
+    effects:
+      - type: damage
+        power: 10
+    is_active: true
+  - command: spell_pool_tide_1
+    display_name: 飛沫(仮)
+    attribute: BB
+    mp_cost: 5
+    target_rule: single_enemy
+    effects:
+      - type: damage
+        power: 5
+    is_active: true
+  - command: spell_pool_tide_2
+    display_name: 群青(仮)
+    attribute: PB
+    mp_cost: 5
+    target_rule: single_enemy
+    effects:
+      - type: damage
+        power: 5
+    is_active: true
+  - command: spell_enemy_bite
+    display_name: 噛みつき(仮)
+    attribute: RR
+    mp_cost: 0
+    target_rule: single_adventurer
+    effects:
+      - type: damage
+        power: 5
+    is_active: true
+
+items:
+  - item_key: item_blessing_flame
+    display_name: 炎の護符(仮)
+    attribute: RR
+    granted_spell_command: spell_blessing_flame
+    base_stat_modifiers: {max_hp: 50, rr: 10}
+    per_level_stat_modifiers: {max_hp: 5, rr: 1}
+    break_effects: []
+    is_active: true
+  - item_key: item_pool_flame_1
+    display_name: 火花の種(仮)
+    attribute: RR
+    granted_spell_command: spell_pool_flame_1
+    base_stat_modifiers: {rr: 5}
+    per_level_stat_modifiers: {rr: 1}
+    break_effects: []
+    is_active: true
+  - item_key: item_pool_flame_2
+    display_name: 陽光の種(仮)
+    attribute: YR
+    granted_spell_command: spell_pool_flame_2
+    base_stat_modifiers: {yr: 5}
+    per_level_stat_modifiers: {yr: 1}
+    break_effects: []
+    is_active: true
+  - item_key: item_blessing_tide
+    display_name: 潮の護符(仮)
+    attribute: BB
+    granted_spell_command: spell_blessing_tide
+    base_stat_modifiers: {max_mp: 20, bb: 10}
+    per_level_stat_modifiers: {max_mp: 2, bb: 1}
+    break_effects: []
+    is_active: true
+  - item_key: item_pool_tide_1
+    display_name: 飛沫の種(仮)
+    attribute: BB
+    granted_spell_command: spell_pool_tide_1
+    base_stat_modifiers: {bb: 5}
+    per_level_stat_modifiers: {bb: 1}
+    break_effects: []
+    is_active: true
+  - item_key: item_pool_tide_2
+    display_name: 群青の種(仮)
+    attribute: PB
+    granted_spell_command: spell_pool_tide_2
+    base_stat_modifiers: {pb: 5}
+    per_level_stat_modifiers: {pb: 1}
+    break_effects: []
+    is_active: true
+
+spirits:
+  - spirit_key: spirit_flame
+    display_name: 炎の精霊(仮)
+    representative_attribute: RR
+    blessing_item_key: item_blessing_flame
+    is_active: true
+    pool_item_keys:
+      - item_pool_flame_1
+      - item_pool_flame_2
+  - spirit_key: spirit_tide
+    display_name: 潮の精霊(仮)
+    representative_attribute: BB
+    blessing_item_key: item_blessing_tide
+    is_active: true
+    pool_item_keys:
+      - item_pool_tide_1
+      - item_pool_tide_2
+
+enemies:
+  - enemy_key: enemy_slime
+    display_name: スライム(仮)
+    base_max_hp: 100
+    base_max_mp: 20
+    base_attributes:
+      rr: 5
+      yr: 5
+      yy: 5
+      gy: 5
+      gg: 5
+      bg: 5
+      bb: 5
+      pb: 5
+      pp: 5
+      rp: 5
+    weak_attribute: RR
+    break_max: 50
+    ai_policy_key: random_v1
+    ai_policy_config: {}
+    is_active: true
+    spell_commands:
+      - spell_enemy_bite
