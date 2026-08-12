@@ -129,3 +129,68 @@ def test_event_list_and_event_response_schema_required_fields_and_types():
     assert event_schema["properties"]["event_type"]["type"] == "string"
     assert event_schema["properties"]["body"]["type"] == "object"
     assert event_schema["properties"]["created_at"]["format"] == "date-time"
+
+
+def test_run_state_response_camp_field_is_nullable_reference():
+    schema = _schema()["components"]["schemas"]["RunStateResponse"]
+
+    camp_field = schema["properties"]["camp"]
+    refs = [entry.get("$ref") for entry in camp_field["anyOf"]]
+    nulls = [entry.get("type") for entry in camp_field["anyOf"]]
+    assert "#/components/schemas/CampStateResponse" in refs
+    assert "null" in nulls
+    # camp is not part of the required list: a non-CAMP run response omits
+    # the field being mandatory, but the route always emits it explicitly
+    # (null when not in camp).
+    assert "camp" not in schema["required"]
+
+
+def test_camp_state_response_schema_required_fields_and_types():
+    schema = _schema()["components"]["schemas"]["CampStateResponse"]
+
+    assert schema["required"] == [
+        "floor",
+        "started_at",
+        "deadline_at",
+        "candidate_a",
+        "candidate_b",
+        "members",
+    ]
+    assert schema["properties"]["floor"]["type"] == "integer"
+    assert schema["properties"]["started_at"]["format"] == "date-time"
+    assert schema["properties"]["deadline_at"]["format"] == "date-time"
+    candidate_ref = "#/components/schemas/CampCandidateResponse"
+    assert schema["properties"]["candidate_a"]["$ref"] == candidate_ref
+    assert schema["properties"]["candidate_b"]["$ref"] == candidate_ref
+    assert schema["properties"]["members"]["type"] == "array"
+    assert (
+        schema["properties"]["members"]["items"]["$ref"]
+        == "#/components/schemas/CampMemberResponse"
+    )
+
+
+def test_camp_candidate_response_schema_required_fields_and_types():
+    schema = _schema()["components"]["schemas"]["CampCandidateResponse"]
+
+    assert schema["required"] == ["item_id", "display_name"]
+    assert schema["properties"]["item_id"]["type"] == "integer"
+    assert schema["properties"]["display_name"]["type"] == "string"
+
+
+def test_camp_member_response_schema_required_fields_and_types():
+    schema = _schema()["components"]["schemas"]["CampMemberResponse"]
+
+    assert schema["required"] == [
+        "run_adventurer_id",
+        "can_select_action",
+        "selected_action",
+        "is_ready",
+        "is_participating",
+    ]
+    assert schema["properties"]["run_adventurer_id"]["type"] == "string"
+    assert schema["properties"]["run_adventurer_id"]["format"] == "uuid"
+    assert schema["properties"]["can_select_action"]["type"] == "boolean"
+    assert {"type": "string"} in schema["properties"]["selected_action"]["anyOf"]
+    assert {"type": "null"} in schema["properties"]["selected_action"]["anyOf"]
+    assert schema["properties"]["is_ready"]["type"] == "boolean"
+    assert schema["properties"]["is_participating"]["type"] == "boolean"

@@ -12,6 +12,7 @@ from yt_live_dungeon.persistence.models import ProcessedCommand
 from yt_live_dungeon.persistence.queries.processed_command import (
     find_by_source_and_message_id,
 )
+from yt_live_dungeon.persistence.queries.run import get_run_for_update
 
 
 async def submit_command(
@@ -38,6 +39,16 @@ async def submit_command(
     )
     if existing is not None:
         return existing
+
+    # Lock the run row before creating the provisional record. The
+    # provisional row's FK reference to runs.id already takes an implicit
+    # FOR KEY SHARE lock on that row at INSERT time; if a handler (e.g.
+    # @select) later takes its own FOR UPDATE on the same row, two
+    # concurrent submissions for the same run can each hold the other's
+    # required lock and deadlock. Acquiring FOR UPDATE here first fixes
+    # the acquisition order for every command, not just the ones whose
+    # handlers lock the run themselves.
+    await get_run_for_update(session, run_id)
 
     provisional = ProcessedCommand(
         source=command_input.source,

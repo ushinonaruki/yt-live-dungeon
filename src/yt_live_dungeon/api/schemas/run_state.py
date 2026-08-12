@@ -3,6 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from yt_live_dungeon.api.schemas.camp import CampStateResponse
 from yt_live_dungeon.persistence.models.run import RunState
 
 
@@ -12,3 +13,4 @@ class RunStateResponse(BaseModel):
     current_floor: int
     started_at: datetime
     ended_at: datetime | None
+    camp: CampStateResponse | None = None

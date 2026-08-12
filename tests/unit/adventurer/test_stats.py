@@ -4,6 +4,7 @@ from yt_live_dungeon.domain.errors import InvalidStatModifierError
 from yt_live_dungeon.features.adventurer.stats import (
     calculate_final_stats,
     clamp_current_vitals,
+    item_modifiers,
     usable_spell_ids,
 )
 
@@ -125,6 +126,36 @@ def test_does_not_clamp_max_hp_or_attributes_to_any_lower_bound(make_entry):
 
     assert stats.max_hp == 500 - 10_000
     assert stats.attributes["rr"] == -500
+
+
+def test_item_modifiers_returns_base_plus_per_level_for_a_single_item(make_entry):
+    entry = make_entry(
+        slot=1,
+        current_level=3,
+        base_stat_modifiers={"max_hp": 10, "rr": 2},
+        per_level_stat_modifiers={"max_hp": 5, "rr": 1},
+    )
+
+    modifiers = item_modifiers(entry)
+
+    assert modifiers["max_hp"] == 10 + 5 * 3
+    assert modifiers["rr"] == 2 + 1 * 3
+    assert modifiers["max_mp"] == 0
+
+
+def test_item_modifiers_matches_calculate_final_stats_totals_for_one_item(make_entry):
+    entry = make_entry(
+        slot=1,
+        current_level=2,
+        base_stat_modifiers={"max_hp": 50, "bb": 4},
+        per_level_stat_modifiers={"max_hp": 5, "bb": 1},
+    )
+
+    modifiers = item_modifiers(entry)
+    stats = calculate_final_stats(base_max_hp=500, base_max_mp=100, entries=[entry])
+
+    assert stats.max_hp == 500 + modifiers["max_hp"]
+    assert stats.attributes["bb"] == modifiers["bb"]
 
 
 def test_usable_spell_ids_collects_spells_from_owned_items(make_entry):
