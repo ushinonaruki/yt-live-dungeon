@@ -25,7 +25,12 @@ class Run(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     state: Mapped[RunState] = mapped_column(
-        Enum(RunState, name="run_state", schema="runtime"),
+        Enum(
+            RunState,
+            name="run_state",
+            schema="runtime",
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
         default=RunState.WAITING,
     )
     current_floor: Mapped[int] = mapped_column(Integer, default=1)

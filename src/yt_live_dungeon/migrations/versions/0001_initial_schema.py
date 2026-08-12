@@ -58,7 +58,7 @@ def upgrade() -> None:
     )
     op.create_table('runs',
     sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('state', sa.Enum('WAITING', 'BATTLE', 'CAMP', 'RETIRE', 'GAME_OVER', name='run_state', schema='runtime'), nullable=False),
+    sa.Column('state', sa.Enum('waiting', 'battle', 'camp', 'retire', 'game_over', name='run_state', schema='runtime'), nullable=False),
     sa.Column('current_floor', sa.Integer(), nullable=False),
     sa.Column('started_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('ended_at', sa.DateTime(timezone=True), nullable=True),
