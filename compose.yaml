@@ -29,11 +29,6 @@ services:
       - "${POSTGRES_PORT_HOST}:${POSTGRES_PORT_CONTAINER}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   redis:
     image: yt-live-dungeon-redis
@@ -46,11 +41,6 @@ services:
       - "${REDIS_PORT_HOST}:${REDIS_PORT_CONTAINER}"
     volumes:
       - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
 volumes:
   postgres_data:
