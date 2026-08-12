@@ -3,7 +3,7 @@ services:
     image: yt-live-dungeon-api
     build:
       context: .
-      dockerfile: docker/api/Dockerfile
+      dockerfile: docker/python/Dockerfile
       target: dev
     env_file:
       - .env
