@@ -4,6 +4,7 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from yt_live_dungeon.domain.random_source import RandomSource
 from yt_live_dungeon.features.camp.deadline import ensure_camp_deadline_evaluated
 from yt_live_dungeon.features.commands.dispatch import CommandOutcome
 from yt_live_dungeon.persistence.models import Run, RunAdventurer, RunCamp, RunState
@@ -33,6 +34,7 @@ async def resolve_camp_only(
     run_id: uuid.UUID,
     *,
     now: datetime,
+    random_source: RandomSource,
     lock_run: bool = False,
 ) -> ResolvedCampOnly | CommandOutcome:
     """Preconditions shared by CAMP commands that don't require an
@@ -40,7 +42,7 @@ async def resolve_camp_only(
     is evaluated first (which may itself end the CAMP), then run.state
     == CAMP and an open RunCamp for the current floor must both hold.
     """
-    await ensure_camp_deadline_evaluated(session, run_id, now=now)
+    await ensure_camp_deadline_evaluated(session, run_id, now=now, random_source=random_source)
 
     run = await (get_run_for_update(session, run_id) if lock_run else get_run(session, run_id))
     if run is None or run.state != RunState.CAMP:
@@ -59,6 +61,7 @@ async def resolve_camp_session(
     viewer_id: str,
     *,
     now: datetime,
+    random_source: RandomSource,
     lock_run: bool = False,
 ) -> ResolvedCampSession | CommandOutcome:
     """Common preconditions shared by every CAMP command that acts on an
@@ -71,7 +74,9 @@ async def resolve_camp_session(
     Returns the resolved rows, or a rejecting CommandOutcome the caller
     should return unchanged.
     """
-    resolved = await resolve_camp_only(session, run_id, now=now, lock_run=lock_run)
+    resolved = await resolve_camp_only(
+        session, run_id, now=now, random_source=random_source, lock_run=lock_run
+    )
     if isinstance(resolved, CommandOutcome):
         return resolved
     run, camp = resolved.run, resolved.camp

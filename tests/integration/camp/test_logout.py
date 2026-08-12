@@ -44,6 +44,8 @@ async def _setup_camp_with_members(
     adventurer_factory,
     camp_factory,
     camp_member_factory,
+    enemy_factory,
+    enemy_group_factory,
     *,
     member_count: int = 2,
     ready_flags: list[bool] | None = None,
@@ -56,7 +58,12 @@ async def _setup_camp_with_members(
     await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_a.id)
     await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_b.id)
 
-    run = await run_factory(state=RunState.CAMP, current_floor=1)
+    enemy = await enemy_factory()
+    group = await enemy_group_factory(
+        members=[{"order_in_group": 1, "enemy_id": enemy.id, "role": "master"}]
+    )
+
+    run = await run_factory(state=RunState.CAMP, current_floor=1, next_group_id=group.id)
     camp = await camp_factory(
         run_id=run.id,
         spirit_id=spirit.id,
@@ -89,6 +96,8 @@ async def test_logout_sets_is_participating_false_and_left_at(
     adventurer_factory,
     camp_factory,
     camp_member_factory,
+    enemy_factory,
+    enemy_group_factory,
 ):
     run, camp, [adventurer, _other] = await _setup_camp_with_members(
         spell_factory,
@@ -99,6 +108,8 @@ async def test_logout_sets_is_participating_false_and_left_at(
         adventurer_factory,
         camp_factory,
         camp_member_factory,
+        enemy_factory,
+        enemy_group_factory,
     )
 
     outcome = await handle_logout(
@@ -123,6 +134,8 @@ async def test_logout_preserves_adventurer_spirit_items_hp_mp(
     camp_factory,
     camp_member_factory,
     inventory_item_factory,
+    enemy_factory,
+    enemy_group_factory,
 ):
     run, camp, [adventurer, _other] = await _setup_camp_with_members(
         spell_factory,
@@ -133,6 +146,8 @@ async def test_logout_preserves_adventurer_spirit_items_hp_mp(
         adventurer_factory,
         camp_factory,
         camp_member_factory,
+        enemy_factory,
+        enemy_group_factory,
     )
     item = await item_factory(granted_spell_id=(await spell_factory()).id)
     await inventory_item_factory(adventurer.id, item.id, slot=3, current_level=4)
@@ -165,6 +180,8 @@ async def test_logout_frees_a_participant_slot(
     adventurer_factory,
     camp_factory,
     camp_member_factory,
+    enemy_factory,
+    enemy_group_factory,
 ):
     run, _camp, [adventurer, other] = await _setup_camp_with_members(
         spell_factory,
@@ -175,6 +192,8 @@ async def test_logout_frees_a_participant_slot(
         adventurer_factory,
         camp_factory,
         camp_member_factory,
+        enemy_factory,
+        enemy_group_factory,
     )
 
     await handle_logout(Logout(), _context(db_session, run.id, adventurer.youtube_id))
@@ -193,6 +212,8 @@ async def test_logout_that_leaves_all_remaining_ready_ends_camp(
     adventurer_factory,
     camp_factory,
     camp_member_factory,
+    enemy_factory,
+    enemy_group_factory,
 ):
     run, _camp, [not_ready, ready] = await _setup_camp_with_members(
         spell_factory,
@@ -203,6 +224,8 @@ async def test_logout_that_leaves_all_remaining_ready_ends_camp(
         adventurer_factory,
         camp_factory,
         camp_member_factory,
+        enemy_factory,
+        enemy_group_factory,
         member_count=2,
         ready_flags=[False, True],
     )
@@ -235,6 +258,8 @@ async def test_logout_of_last_participant_retires_the_run(
     adventurer_factory,
     camp_factory,
     camp_member_factory,
+    enemy_factory,
+    enemy_group_factory,
 ):
     run, _camp, [only_adventurer] = await _setup_camp_with_members(
         spell_factory,
@@ -245,6 +270,8 @@ async def test_logout_of_last_participant_retires_the_run(
         adventurer_factory,
         camp_factory,
         camp_member_factory,
+        enemy_factory,
+        enemy_group_factory,
         member_count=1,
     )
 
@@ -282,6 +309,8 @@ async def test_logout_does_not_end_camp_when_other_participants_remain_unready(
     adventurer_factory,
     camp_factory,
     camp_member_factory,
+    enemy_factory,
+    enemy_group_factory,
 ):
     run, _camp, [leaving, still_here] = await _setup_camp_with_members(
         spell_factory,
@@ -292,6 +321,8 @@ async def test_logout_does_not_end_camp_when_other_participants_remain_unready(
         adventurer_factory,
         camp_factory,
         camp_member_factory,
+        enemy_factory,
+        enemy_group_factory,
         member_count=2,
         ready_flags=[False, False],
     )
@@ -357,6 +388,8 @@ async def test_adventurer_logout_event_body(
     adventurer_factory,
     camp_factory,
     camp_member_factory,
+    enemy_factory,
+    enemy_group_factory,
 ):
     run, _camp, [adventurer, _other] = await _setup_camp_with_members(
         spell_factory,
@@ -367,6 +400,8 @@ async def test_adventurer_logout_event_body(
         adventurer_factory,
         camp_factory,
         camp_member_factory,
+        enemy_factory,
+        enemy_group_factory,
     )
 
     await handle_logout(Logout(), _context(db_session, run.id, adventurer.youtube_id))

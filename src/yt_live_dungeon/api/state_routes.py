@@ -1,21 +1,25 @@
+import random
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from yt_live_dungeon.api.deps import get_session
+from yt_live_dungeon.api.deps import get_current_time, get_session
 from yt_live_dungeon.api.schemas.camp import (
     CampCandidateResponse,
     CampMemberResponse,
     CampStateResponse,
 )
+from yt_live_dungeon.api.schemas.enemy import RunEnemyResponse
 from yt_live_dungeon.api.schemas.event import EventListResponse, EventResponse
 from yt_live_dungeon.api.schemas.run_state import RunStateResponse
+from yt_live_dungeon.domain.mp_regen import apply_mp_regen
 from yt_live_dungeon.features.camp.deadline import ensure_camp_deadline_evaluated
 from yt_live_dungeon.features.camp.state import CampStateData, get_camp_state
 from yt_live_dungeon.persistence.queries.event import list_events_after
 from yt_live_dungeon.persistence.queries.run import get_run
+from yt_live_dungeon.persistence.queries.run_enemy import list_floor_enemies_with_master_data
 
 router = APIRouter()
 
@@ -57,6 +61,7 @@ def _to_camp_response(camp_state: CampStateData | None) -> CampStateResponse | N
 async def get_run_state(
     run_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    now: datetime = Depends(get_current_time),
 ) -> RunStateResponse:
     run = await get_run(session, run_id)
     if run is None:
@@ -67,10 +72,41 @@ async def get_run_state(
     # than relying solely on the next command to notice it -- there is no
     # resident scheduler. This is the transaction owner for that possible
     # mutation; nothing upstream commits on its behalf.
-    await ensure_camp_deadline_evaluated(session, run_id, now=datetime.now(UTC))
+    await ensure_camp_deadline_evaluated(
+        session, run_id, now=now, random_source=random.Random()
+    )
     await session.commit()
 
     camp_state = await get_camp_state(session, run)
+
+    floor_enemy_rows = await list_floor_enemies_with_master_data(session, run_id, run.current_floor)
+    enemies = [
+        RunEnemyResponse(
+            id=run_enemy.id,
+            enemy_key=enemy.enemy_key,
+            display_name=enemy.display_name,
+            role=run_enemy.role,
+            order_in_group=run_enemy.order_in_group,
+            max_hp=run_enemy.max_hp,
+            hp=run_enemy.hp,
+            max_mp=run_enemy.max_mp,
+            # A pure, read-only projection to `now` -- never persisted
+            # here. The DB column only actually advances the next time
+            # this enemy acts (resolve_enemy_action()), but the value
+            # shown to callers must always be the current logical MP,
+            # not whatever was last durably written.
+            mp=apply_mp_regen(
+                mp=run_enemy.mp,
+                max_mp=run_enemy.max_mp,
+                regen_rate=run_enemy.mp_regen_rate,
+                updated_at=run_enemy.mp_regen_updated_at,
+                now=now,
+            ).mp,
+            attributes=run_enemy.attributes,
+            is_alive=run_enemy.defeated_at is None,
+        )
+        for run_enemy, enemy in floor_enemy_rows
+    ]
 
     return RunStateResponse(
         id=run.id,
@@ -79,6 +115,7 @@ async def get_run_state(
         started_at=run.started_at,
         ended_at=run.ended_at,
         camp=_to_camp_response(camp_state),
+        enemies=enemies,
     )
 
 

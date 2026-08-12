@@ -58,10 +58,14 @@ spells:
     display_name: 噛みつき(仮)
     attribute: RR
     mp_cost: 0
-    target_rule: single_adventurer
+    target_rule: enemies
     effects:
-      - type: damage
-        power: 5
+      - effect_id: damage
+        effect_target: selected_targets
+        params:
+          attribute: RR
+          base_power: 5
+          hit_count: 1
     is_active: true
 
 items:
@@ -155,3 +159,12 @@ enemies:
     is_active: true
     spell_commands:
       - spell_enemy_bite
+
+enemy_groups:
+  - group_key: group_slime_solo
+    display_name: スライム単体(仮)
+    is_active: true
+    members:
+      - enemy_key: enemy_slime
+        role: master
+        order_in_group: 1

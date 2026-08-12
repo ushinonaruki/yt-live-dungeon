@@ -33,6 +33,7 @@ async def handle_select(command: Select, context: CommandContext) -> CommandOutc
         context.run_id,
         context.command_input.viewer_id,
         now=context.command_input.received_at,
+        random_source=context.random_source,
         lock_run=True,
     )
     if isinstance(resolved, CommandOutcome):

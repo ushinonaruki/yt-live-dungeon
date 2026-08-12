@@ -6,9 +6,15 @@ import yaml
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from yt_live_dungeon.features.floor.group_validation import (
+    GroupMemberSpec,
+    validate_group_composition,
+)
 from yt_live_dungeon.persistence.database import async_session_factory
 from yt_live_dungeon.persistence.models import (
     Enemy,
+    EnemyGroup,
+    EnemyGroupMember,
     EnemySpell,
     Item,
     Spell,
@@ -104,7 +110,8 @@ async def _upsert_spirits(
 
 async def _upsert_enemies(
     session: AsyncSession, enemies: list[dict], spell_ids: dict[str, int]
-) -> None:
+) -> dict[str, int]:
+    ids: dict[str, int] = {}
     for enemy in enemies:
         payload = {
             "enemy_key": enemy["enemy_key"],
@@ -129,6 +136,7 @@ async def _upsert_enemies(
         )
         result = await session.execute(stmt)
         enemy_id = result.scalar_one()
+        ids[enemy["enemy_key"]] = enemy_id
 
         for spell_command in enemy.get("spell_commands", []):
             entry_stmt = (
@@ -139,13 +147,67 @@ async def _upsert_enemies(
                 )
             )
             await session.execute(entry_stmt)
+    return ids
+
+
+async def _upsert_enemy_groups(
+    session: AsyncSession, groups: list[dict], enemy_ids: dict[str, int]
+) -> None:
+    for group in groups:
+        members = group.get("members", [])
+        validate_group_composition(
+            [
+                GroupMemberSpec(order_in_group=member["order_in_group"], role=member["role"])
+                for member in members
+            ]
+        )
+
+        payload = {
+            "group_key": group["group_key"],
+            "display_name": group["display_name"],
+            "is_active": group.get("is_active", True),
+        }
+        stmt = (
+            pg_insert(EnemyGroup)
+            .values(**payload)
+            .on_conflict_do_update(
+                index_elements=[EnemyGroup.group_key],
+                set_={key: value for key, value in payload.items() if key != "group_key"},
+            )
+            .returning(EnemyGroup.id)
+        )
+        result = await session.execute(stmt)
+        group_id = result.scalar_one()
+
+        for member in members:
+            member_stmt = (
+                pg_insert(EnemyGroupMember)
+                .values(
+                    group_id=group_id,
+                    order_in_group=member["order_in_group"],
+                    enemy_id=enemy_ids[member["enemy_key"]],
+                    role=member["role"],
+                )
+                .on_conflict_do_update(
+                    index_elements=[
+                        EnemyGroupMember.group_id,
+                        EnemyGroupMember.order_in_group,
+                    ],
+                    set_={
+                        "enemy_id": enemy_ids[member["enemy_key"]],
+                        "role": member["role"],
+                    },
+                )
+            )
+            await session.execute(member_stmt)
 
 
 async def load_seed(session: AsyncSession, data: dict) -> None:
     spell_ids = await _upsert_spells(session, data.get("spells", []))
     item_ids = await _upsert_items(session, data.get("items", []), spell_ids)
     await _upsert_spirits(session, data.get("spirits", []), item_ids)
-    await _upsert_enemies(session, data.get("enemies", []), spell_ids)
+    enemy_ids = await _upsert_enemies(session, data.get("enemies", []), spell_ids)
+    await _upsert_enemy_groups(session, data.get("enemy_groups", []), enemy_ids)
 
 
 async def main(seed_name: str) -> None:

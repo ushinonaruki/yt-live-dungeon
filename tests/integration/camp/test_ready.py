@@ -42,6 +42,8 @@ async def _setup_camp_with_members(
     adventurer_factory,
     camp_factory,
     camp_member_factory,
+    enemy_factory,
+    enemy_group_factory,
     *,
     member_count: int = 2,
     ready_flags: list[bool] | None = None,
@@ -54,7 +56,12 @@ async def _setup_camp_with_members(
     await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_a.id)
     await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_b.id)
 
-    run = await run_factory(state=RunState.CAMP, current_floor=1)
+    enemy = await enemy_factory()
+    group = await enemy_group_factory(
+        members=[{"order_in_group": 1, "enemy_id": enemy.id, "role": "master"}]
+    )
+
+    run = await run_factory(state=RunState.CAMP, current_floor=1, next_group_id=group.id)
     camp = await camp_factory(
         run_id=run.id,
         spirit_id=spirit.id,
@@ -87,6 +94,8 @@ async def test_ready_succeeds_without_selecting_an_action(
     adventurer_factory,
     camp_factory,
     camp_member_factory,
+    enemy_factory,
+    enemy_group_factory,
 ):
     run, camp, [a, b] = await _setup_camp_with_members(
         spell_factory,
@@ -97,6 +106,8 @@ async def test_ready_succeeds_without_selecting_an_action(
         adventurer_factory,
         camp_factory,
         camp_member_factory,
+        enemy_factory,
+        enemy_group_factory,
     )
 
     outcome = await handle_ready(Ready(), _context(db_session, run.id, a.youtube_id))
@@ -114,6 +125,8 @@ async def test_ready_all_participants_ready_ends_camp_immediately(
     adventurer_factory,
     camp_factory,
     camp_member_factory,
+    enemy_factory,
+    enemy_group_factory,
 ):
     run, camp, [a, b] = await _setup_camp_with_members(
         spell_factory,
@@ -124,6 +137,8 @@ async def test_ready_all_participants_ready_ends_camp_immediately(
         adventurer_factory,
         camp_factory,
         camp_member_factory,
+        enemy_factory,
+        enemy_group_factory,
         ready_flags=[False, True],
     )
 
@@ -153,6 +168,8 @@ async def test_ready_does_not_end_camp_while_others_are_unready(
     adventurer_factory,
     camp_factory,
     camp_member_factory,
+    enemy_factory,
+    enemy_group_factory,
 ):
     run, camp, [a, b] = await _setup_camp_with_members(
         spell_factory,
@@ -163,6 +180,8 @@ async def test_ready_does_not_end_camp_while_others_are_unready(
         adventurer_factory,
         camp_factory,
         camp_member_factory,
+        enemy_factory,
+        enemy_group_factory,
         ready_flags=[False, False],
     )
 
@@ -182,6 +201,8 @@ async def test_second_ready_call_is_rejected_without_mutation(
     adventurer_factory,
     camp_factory,
     camp_member_factory,
+    enemy_factory,
+    enemy_group_factory,
 ):
     run, camp, [a, b] = await _setup_camp_with_members(
         spell_factory,
@@ -192,6 +213,8 @@ async def test_second_ready_call_is_rejected_without_mutation(
         adventurer_factory,
         camp_factory,
         camp_member_factory,
+        enemy_factory,
+        enemy_group_factory,
         ready_flags=[False, False],
     )
 
@@ -265,6 +288,8 @@ async def test_adventurer_ready_event_body_has_manual_reason(
     adventurer_factory,
     camp_factory,
     camp_member_factory,
+    enemy_factory,
+    enemy_group_factory,
 ):
     run, camp, [a, b] = await _setup_camp_with_members(
         spell_factory,
@@ -275,6 +300,8 @@ async def test_adventurer_ready_event_body_has_manual_reason(
         adventurer_factory,
         camp_factory,
         camp_member_factory,
+        enemy_factory,
+        enemy_group_factory,
     )
 
     await handle_ready(Ready(), _context(db_session, run.id, a.youtube_id))

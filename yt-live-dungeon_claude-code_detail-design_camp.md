@@ -37,12 +37,13 @@ Claude Codeは、Obsidianを変更せず、実装リポジトリだけを変更�
 
 ## 2. 参照する正本
 
-Obsidianの正本は次のリポジトリ配下にある。
+Obsidianの正本は、この実装リポジトリ内に参照コピーとして存在する。
 
 ```text
-repository: ushinonaruki/obsidian-vault
-root: ゲーム/YTL100ダンジョン/
+root: obsidian/YTL100ダンジョン/
 ```
+
+`obsidian/` はこの実装リポジトリからは変更しない。Gitで追跡されない参照コピーであり、独自のコミット履歴・SHAを持たないため、以降はファイルパスだけで正本を特定する。
 
 最低限、実装開始時に以下を再読すること。
 
@@ -59,15 +60,7 @@ root: ゲーム/YTL100ダンジョン/
 呪文/呪文効果処理仕様.md
 ```
 
-この詳細設計の作成時点で確認した主な仕様ファイルのSHAは以下。
-
-| ファイル | SHA |
-|---|---|
-| `進行/キャンプ.md` | `781a95bc019f39d1819fb82ff694a2e934b52ce8` |
-| `キャラクター/ステータス.md` | `9a0c7b668d6f3cba28f525dab5b46bd7dab59605` |
-| `アイテム/アイテム定義仕様.md` | `7e7301d220c773b98649198835fa7138968428b4` |
-| `アイテム/アイテム成長.md` | `731be7726b0ccb081f71015f2c8b103627bf5b53` |
-| `ダンジョン/フロア補正.md` | `d3078a6ba129488f748c1ad34bf59420918991e6` |
+`資料責務マップ.md` は、上記ファイルどうしの責務分担と、同じルールを複数資料へ重複記載しないための参照方針を定義する。本詳細設計もこの方針に従い、ゲーム仕様をここへ複製せず、正本への参照と実装方式だけを記載する。
 
 実装開始時に正本が更新されていた場合は、正本を優先し、差異を完了報告へ明記すること。
 
@@ -212,16 +205,22 @@ src/yt_live_dungeon/
       finish.py
       state.py
     battle/
-      engine.py
-      action.py
-      enemy_context.py
-      enemy_policy.py
-      enemy_policy_registry.py
+      context.py
+      effects.py
+      fallback.py
+      registry.py
+      legal_candidates.py
+      master_defeat.py
+      resolve.py
       policies/
-        random_policy.py
-      finish_floor.py
+        random_v1.py
     floor/
       scaling.py
+      group_draw.py
+      group_validation.py
+      spawn.py
+      start.py
+    run/
       start.py
   domain/
     attributes.py
@@ -241,12 +240,16 @@ src/yt_live_dungeon/
       item.py
       spirit.py
       enemy.py
+      enemy_group.py
+      run_enemy.py
     queries/
       run.py
       adventurer.py
       inventory.py
       camp.py
-      master_data.py
+      enemy.py
+      enemy_group.py
+      run_enemy.py
     seed/
       load.py
       development.yaml
@@ -340,41 +343,40 @@ Unityが演出に使う順序付きイベントを返す。初期実装はポー
 
 ### 6.2 内部契約
 
-`features/battle/enemy_policy.py` に、フレームワーク非依存のProtocolを置く。
+`features/battle/context.py` に、フレームワーク非依存のフローズンdataclass群とProtocolを置く。
 
 ```python
 from typing import Protocol
 
 class EnemyPolicy(Protocol):
-    async def choose_action(
-        self,
-        context: EnemyDecisionContext,
-    ) -> EnemyIntent:
-        ...
+    def decide(self, context: EnemyDecisionContext) -> EnemyIntent: ...
 ```
 
-`EnemyDecisionContext` は読み取り専用DTOとし、最低限次を含む。
+`decide` は同期関数とする。Policy実装が非同期I/O（DBアクセス、外部AI呼び出し等）を必要とする場合も、Contextの外へは出られない範囲でPolicy実装側が完結させる。
+
+`EnemyDecisionContext` は読み取り専用のフローズンdataclassとし、次を持つ。
 
 ```text
-run_id
-floor
-turn
-acting_enemy snapshot
-ally snapshots
-opponent snapshots
-使用可能かつ合法なaction候補
-各actionで選択可能なtarget候補
-policy_config
+run_id: str
+floor: int
+action_sequence: int  # ログ・診断専用の不透明な識別子。二重適用防止の根拠ではない
+actor: CombatantSnapshot
+allies: tuple[CombatantSnapshot, ...]
+enemies: tuple[CombatantSnapshot, ...]
+legal_actions: tuple[LegalActionCandidate, ...]
+policy_config: dict
 ```
 
-ORM model、DB session、Redis client、FastAPI Requestは渡さない。
+二重適用防止は、Battle Engine側の行ロックと単一トランザクション境界だけが保証する。`action_sequence` はその手段ではない。
+
+ORM model、DB session、Redis client、FastAPI Requestは渡さない。`CombatantSnapshot` の `combatant_id` も `RunAdventurer.id` / `RunEnemy.id` を文字列化した値であり、ORMオブジェクトそのものではない。
 
 `EnemyIntent` は判断結果だけを表す。
 
 ```text
 action_id
 target_ids
-optional metadata
+metadata: dict（既定は空）
 ```
 
 ### 6.3 実行順
@@ -391,18 +393,20 @@ Battle EngineがIntentを再検証
 合法なら通常のaction解決処理で適用・永続化
 ```
 
-Policyが存在しない、timeout、例外、不正なIntentの場合は、定義済みの安全なfallback Policyへ切り替える。AIの失敗で戦闘状態を部分更新しない。
+Policyが存在しない、timeout、例外、不正なIntentの場合は、定義済みの安全なfallback Policyへ切り替える。AIの失敗で戦闘状態を部分更新しない。fallback自身が返したIntentも、通常のPolicy出力と同じく再検証してから適用する。
+
+timeoutは同期呼び出し後に経過時間を計測する簡易実装であり、実行中のPolicyを強制的に打ち切ることはできない。真の意味での事前タイムアウト（別スレッド/プロセスでの強制中断）が必要になった場合は、対象Commitの範囲を超えるため報告する。
 
 ### 6.4 Policy選択
 
-敵マスターデータに次を持たせる。
+敵マスターデータ（`enemies`）に次を持たせる。
 
 ```text
 ai_policy_key
 ai_policy_config JSONB
 ```
 
-`enemy_policy_registry.py` がkeyを実装へ解決する。Battle EngineへPolicy別の `if` / `match` を追加しない。
+`features/battle/registry.py` がkeyを実装へ解決する。Battle EngineへPolicy別の `if` / `match` を追加しない。未登録のkeyは例外を送出せず `None` を返し、呼び出し側でfallbackへ切り替える。
 
 初期実装:
 
@@ -427,8 +431,10 @@ remote_v1   → RemoteEnemyPolicyAdapter
 - Policyへ合法候補だけが渡る
 - 不正action・存在しないtargetはfallbackする
 - Policy例外・timeoutで状態を部分更新しない
+- fallback自身が返したIntentも再検証する
 - Policyを差し替えても同じBattle Engineテストが通る
 - PolicyからDB sessionへ到達できない
+- `EnemyDecisionContext` / `EnemyIntent` がJSON化可能な程度に単純な値だけで構成されている（ORM・session混入の検出）
 
 ---
 
@@ -597,6 +603,73 @@ rp
 | `is_active` | Boolean | 使用可否 |
 
 敵とSpellの多対多テーブルを設け、敵が使用できるSpellをDBで管理する。敵名、能力値、Spell、Policy設定をPythonコードへハードコードしない。
+
+### 8.6a `enemy_groups` / `enemy_group_members`
+
+1フロアに出現する敵一団（マスター1体＋ミニオン0～8体の固定編成）は、[[ダンジョン/マスターとミニオン]] の定義どおり事前登録された固定groupとしてDB管理する。フロア開始時にmaster・minionを個別抽選して組み立てることはしない。
+
+`enemy_groups`:
+
+| カラム | 型 | 制約・意味 |
+|---|---|---|
+| `id` | Integer | PK |
+| `group_key` | String | 一意な安定キー |
+| `display_name` | String | 表示名 |
+| `is_active` | Boolean | 抽選対象か |
+
+`enemy_group_members`:
+
+| カラム | 型 | 制約・意味 |
+|---|---|---|
+| `group_id` | FK | 複合PKの一部 |
+| `order_in_group` | Integer | 複合PKの一部。`1〜9` |
+| `enemy_id` | FK | 参照するEnemyテンプレート |
+| `role` | String | `master` / `minion` |
+
+制約:
+
+```text
+CHECK(role IN ('master', 'minion'))
+CHECK(order_in_group BETWEEN 1 AND 9)
+group_idごとにrole='master'は高々1件（部分UNIQUE index）
+```
+
+「masterを必ず1体含む」「minionは0〜8体」という群全体としての条件は単一行のCHECKで表現できないため、group登録時にアプリケーション境界（`features/floor/group_validation.py`）で検証してから書き込む。
+
+### 8.6b `run_enemies`
+
+1ランの1フロアに実際に配置された敵の実行時状態。group・Enemyテンプレートのマスターデータとは独立して持ち、後からテンプレート側の数値を変更しても既に配置済みのフロアの戦闘値へは影響しない。
+
+| カラム | 型 | 制約・意味 |
+|---|---|---|
+| `id` | UUID | PK |
+| `run_id` | FK | 対象ラン |
+| `floor` | Integer | 配置floor |
+| `group_id` | FK | 由来group |
+| `enemy_id` | FK | 由来Enemyテンプレート |
+| `order_in_group` | Integer | group内の位置 |
+| `role` | String | `master` / `minion` |
+| `max_hp` / `hp` / `max_mp` / `mp` | Integer | floor補正適用後のスナップショット |
+| `attributes` | JSONB | floor補正適用後の10属性スナップショット |
+| `defeated_at` | DateTime nullable | 撃破時刻 |
+| `created_at` | DateTime | 配置時刻 |
+
+制約:
+
+```text
+CHECK(role IN ('master', 'minion'))
+CHECK(order_in_group >= 1)
+CHECK(max_hp >= 0), CHECK(hp >= 0), CHECK(hp <= max_hp)
+CHECK(max_mp >= 0), CHECK(mp >= 0), CHECK(mp <= max_mp)
+UNIQUE(run_id, floor, order_in_group)
+run_id・floorごとにrole='master'は高々1件（部分UNIQUE index）
+```
+
+`order_in_group` は `enemy_group_members` と異なり上限を設けない。戦闘中の追加出現（[[ダンジョン/マスターとミニオン]] 11章、未確定・今回対象外）が将来必要になった際、初期group由来の1〜9を超える値を配置できるようにするためであり、今回はそのための機能を実装しない。
+
+### 8.6c `runs.next_group_id`
+
+`runs` テーブルへ `next_group_id`（`enemy_groups.id` へのnullable FK）を追加する。現在floorの戦闘中、次floorに配置することが確定済みのgroupをここに保持する。次floor開始時はこの値を消費するだけで、その場でgroupを再抽選しない。100F開始後は次floorが存在しないため `NULL` のままとする。current / next groupのライフサイクルは [[ダンジョン/マスターとミニオン]] 5章を正本とする。
 
 ### 8.7 `run_adventurers`
 
@@ -804,7 +877,9 @@ commit
 
 ### 11.1 呼出点
 
-Battle Engineがマスター撃破を確定するUse Case内で、`features/camp/start.py` のCAMP開始処理を呼ぶ。旧 `BattleService`、`RunState.RESULT`、旧 `CampService` は前提にしない。
+マスター撃破判定は `features/battle/master_defeat.py` の `check_and_handle_master_defeat()` として、マスターのHPがどの経路で0になったかから独立させ、共有・再利用可能な形で持つ。`run.state == BATTLE` の間だけ動作する冪等な判定とし、対象floorのマスター `run_enemies` 行の `defeated_at` を見て、非nullなら100F未満は `features/camp/start.py` のCAMP開始処理を呼び、100Fなら`GAME_OVER`遷移とする（14章参照）。旧 `BattleService`、`RunState.RESULT`、旧 `CampService` は前提にしない。
+
+現時点でマスターのHPを実際に0へ更新する経路は、敵行動側の `features/battle/resolve.py`（`resolve_enemy_action()`）だけである。冒険者が敵を攻撃するUse Caseは今回実装しないため、`check_and_handle_master_defeat()` はそちら側からはまだ呼ばれない。冒険者攻撃Use Caseを実装する際は、この既存の共有トリガーへ同様に接続する。
 
 ### 11.2 同一トランザクションで行う処理
 
@@ -1003,47 +1078,40 @@ run.ended_at = now
 
 現在参加中の全冒険者について、所持品込みの最大MPを再計算し、現在MPを最大MPへ設定する。HPは変更しない。
 
-その後、`features/floor/start.py` の現行仕様用Use Caseで、参加中冒険者を引き継いで次フロアを作る。旧 `FloorService` やpending join処理を分割・再利用しない。
+その後、`features/floor/start.py` の `start_next_floor()` で、参加中冒険者を引き継いで次フロアを開始する。旧 `FloorService` やpending join処理を分割・再利用しない。
 
 ```text
 camp.ended_at = now
 ↓
 参加中冒険者MP全回復
 ↓
-current_floor + 1の敵を生成
+runs.next_group_idに保存済みのgroupをcurrent_floor + 1へ配置（新規抽選しない）
 ↓
 run.state = BATTLE
 ↓
-floor_startログ
+floor_startedイベント
+↓
+（current_floor + 1が100未満なら）さらに次floor用groupを抽選してnext_group_idへ保存
 ```
 
-一連の処理は同一トランザクションとする。敵生成に失敗した場合、CAMPだけ終了済みにしない。
+一連の処理は同一トランザクションとする。`next_group_id` が未保存の場合や、抽選対象の active な `enemy_groups` が0件の場合は、設定不備として例外を送出し、CAMPだけ終了済みにしない。current / next groupのライフサイクル全体は8.6cおよび [[ダンジョン/マスターとミニオン]] 5章を参照。
 
 ---
 
 ## 14. フロア補正
 
-敵生成の純粋関数を現行仕様へ変更する。
+補正の対象値・補正式・補正しない値は [[ダンジョン/フロア補正]] を唯一の正本とする。ここでは複製せず、実装方式だけを記載する。
+
+`features/floor/scaling.py` に、group由来の初期パラメータ（Enemyテンプレートの基礎値）とfloor数を受け取り、配置時点の `max_hp` / `attributes` を返す純粋関数を置く。この関数は `features/floor/spawn.py`（group配置時に `run_enemies` 行を作る処理）からだけ呼ばれ、戦闘中のDamage計算（`features/battle/effects.py`）へ倍率として混入させない。
+
+1Fは補正なしとする。参加人数による補正は行わない。最大MP、MP回復速度、Spellの基本威力・係数・MP消費・target_rule・effects、Weak、Break、Chainにはフロア補正を掛けない。
+
+旧詳細設計・旧実装（Commit 6時点）に含まれていた次の値は誤りであり、実装根拠にしない。
 
 ```text
-敵最大HP
-= floor(
-    基礎最大HP
-    * (1 + 0.25 * (フロア数 - 1))
-  )
+敵最大HPを1floorごとに25%増加させる式
+敵属性値を1floorごとに+5する式
 ```
-
-敵の各10属性値:
-
-```text
-敵の各10属性値
-= 各基礎属性値
- + 5 * (フロア数 - 1)
-```
-
-フロア補正で増加させるのは最大HPと10属性値だけであり、参加人数による補正はない。
-
-最大MP、MP回復速度、Spell基本威力、MP消費、Weak、Break、Chainにはフロア補正を掛けない。
 
 ---
 
@@ -1117,6 +1185,34 @@ camp_ended
 
 状態取得時にもCAMP期限を評価する。現在のヘッドレス版では、コマンド受付または状態ポーリングで期限到達を検知して終了処理を行う。常駐スケジューラ導入は別フェーズとする。
 
+### 16.1 現在floorの敵
+
+`GET /api/v1/runs/{run_id}/state` へ、常に現在floorの `run_enemies` を返す `enemies` 配列を追加する。
+
+```json
+{
+  "enemies": [
+    {
+      "id": "...",
+      "enemy_key": "...",
+      "display_name": "...",
+      "role": "master",
+      "order_in_group": 1,
+      "max_hp": 100,
+      "hp": 80,
+      "max_mp": 20,
+      "mp": 15,
+      "attributes": {"rr": 5},
+      "is_alive": true
+    }
+  ]
+}
+```
+
+前floor以前の `run_enemies` 行は含めない。
+
+このAPIでは `next_group`（またはそのマスター・対応精霊の名称）は公開しない。次に出現するgroupを画面へ公開する情報の範囲は、[[ダンジョン/マスターとミニオン]] 13章で未確定事項として扱われており、既存のAPI契約上の根拠もないため、`runs.next_group_id` として永続化・内部query可能な状態のまま公開しない、という判断とする。将来この情報を公開する場合は、正本側の確定を待ってから追加する。
+
 ---
 
 ## 17. トランザクションと競合制御
@@ -1129,10 +1225,13 @@ camp_ended
 - `@select`
 - `@ready`
 - CAMP時間切れ終了
+- 敵行動解決（`resolve_enemy_action()`）
 
-アイテム取得・Lv上昇・並べ替えでは、対象冒険者の所持行もロックする。
+アイテム取得・Lv上昇・並べ替えでは、対象冒険者の所持行もロックする。敵行動解決では、run行に加えて行動主体の `run_enemies` 行も `FOR UPDATE` でロックする。
 
 transaction境界はUse Caseの外周に1回だけ置く。query関数や純粋計算はcommitしない。旧Service/Repository方針の維持を目的にせず、この規則を新構成で直接実装する。
+
+敵行動解決は、ターン制の管理テーブルや順番カウンタを新設せず、この行ロックと単一トランザクション境界だけで同一敵に対する同時実行を安全に直列化する。1回のUse Case呼び出しは常に1回の行動として適用され、「同じ敵を二度呼び出すと二重に行動する」ことは仕様であり、防ぐべき不具合ではない。防ぐべきなのは、同時実行時にどちらかの更新が失われる（lost update）ことだけである。
 
 外部コメントの重複配信に備え、`processed_commands` の一意制約によって同じ入力を二重適用しない。
 
@@ -1153,6 +1252,9 @@ transaction境界はUse Caseの外周に1回だけ置く。query関数や純粋�
 | `inventory_moved` | adventurer, old_order, new_order |
 | `camp_ended` | floor, reason, participant_count |
 | `run_retired` | floor |
+| `floor_started` | floor |
+| `enemy_action_resolved` | actor, action, target_ids, fallback_used, damage |
+| `run_completed` | floor |
 
 表示文言はログへ固定せず、構造化bodyを正とする。
 
@@ -1211,6 +1313,7 @@ active精霊 2体以上
 各加護が付与するSpell 1件
 各加護の固定10属性補正
 各精霊の通常アイテムプール 2件以上
+active敵group 1件以上（master 1体を含む）
 ```
 
 仮の名称・数値はテストの期待値を簡単に計算できるものにする。最終仕様としてREADMEへ記載しない。
@@ -1225,12 +1328,15 @@ active精霊 2体以上
 - 負補正を正しく合算
 - 複数アイテムを全ステータスへ合算
 - 同一Spellを集合として重複排除
-- HPフロア補正の1F・10F・100F
-- 属性補正の1F・10F・100F（参加人数による補正は行わない）
+- HPフロア補正の1F・2F・10F・100F（旧25%式の値にならないことを含む）
+- 属性補正の1F・2F・10F・100F（参加人数による補正は行わない、旧+5式の値にならないことを含む）
 - アイテム候補が常に異なる2件
+- group構成の検証（master必ず1体、minion0〜8体、order_in_groupの連続性）
+- 固定乱数でgroup抽選の結果を再現（等確率・復元抽出）
 - 固定乱数で敵 `random_v1` の結果を再現
 - EnemyPolicyへ合法候補だけが渡る
 - 不正Intent、例外、timeoutでfallbackし、状態を部分更新しない
+- fallback自身の出力も再検証する
 
 ### 21.2 inventory
 
@@ -1274,6 +1380,22 @@ active精霊 2体以上
 - 二重終了しない
 - 次フロアでMP全回復・HP引継ぎ
 
+### 21.4a 敵group・current/next・Battle Engine
+
+- run開始時に1F用groupを配置し、2F用next groupを別途抽選・保存する
+- 2F〜99F開始時、保存済みnext groupを新規抽選せず消費してcurrent groupにする
+- 100F開始後はnext_group_idがNULLのままになる
+- active groupが0件のとき、抽選箇所が設定エラーとして例外を送出する
+- 現在floor以外の `run_enemies` が戦闘対象・legal_actionsへ現れない
+- MPが足りないSpellがlegal_actionsから除外される
+- target_ruleが0件になるSpellがlegal_actionsから除外される
+- Battle EngineがPolicyの出力を自身のlegal_actionsに対して再検証する
+- 同一の敵行動主体への同時実行が、更新の欠落（lost update）なく直列化される
+- マスター撃破（`defeated_at`設定）で `CAMP` へ遷移し、ミニオン撃破単独では遷移しない
+- 前floorで撃破済みのマスターが現在floorの突破判定に影響しない
+- 二重呼び出しで二重にCAMP・GAME_OVER遷移しない（`run.state`がBATTLEのときだけ動作する）
+- 100Fのマスター撃破でCAMPを経由せず `GAME_OVER` へ遷移する
+
 ### 21.5 API
 
 - CAMP stateに共有候補・期限・メンバー状態が出る
@@ -1284,6 +1406,8 @@ active精霊 2体以上
 - Unity・YouTube固有SDKへ依存しない
 - ORM modelをHTTPへ露出しない
 - `/events?after=` が単調増加sequenceで差分を返す
+- stateの `enemies` に現在floorの敵だけが必要フィールド込みで出る
+- stateのレスポンスに `next_group` / `next_group_id` が出ない
 
 ### 21.6 Docker・DB
 
@@ -1466,34 +1590,44 @@ CAMP中の参加変更と終了・次フロア遷移を実装する
 feat: complete camp participation and transition
 ```
 
-### Commit 7: 敵AI Policy境界
+### Commit 7: 敵group・RunEnemy・EnemyPolicy境界
 
 目的:
 
 ```text
-敵AI方式をBattle Engineや公開APIから独立させる
+固定敵groupの永続化とcurrent/next抽選ライフサイクルを実装し、
+敵の行動決定をBattle Engineから独立したPolicyへ分離する
 ```
 
 やること:
 
-- `EnemyDecisionContext` / `EnemyIntent`
-- `EnemyPolicy` Protocol
-- policy registry
-- `random_v1`
-- Battle EngineによるIntent再検証
-- fallback
+- `enemy_groups` / `enemy_group_members`（8.6a）
+- group構成検証（master1体・minion0〜8体・順序）
+- group等確率・復元抽出の抽選
+- `run_enemies`（8.6b）とfloor補正済みスナップショット配置
+- `runs.next_group_id`（8.6c）とcurrent/next groupライフサイクル
+- `EnemyDecisionContext` / `EnemyIntent` / `CombatantSnapshot` / `LegalActionCandidate`
+- `EnemyPolicy` Protocol（`decide`）
+- policy registry、`random_v1`
+- Battle EngineによるIntent再検証（fallback自身の出力も含む）
 - 敵master dataのpolicy設定
-- unit / integration tests
+- マスター撃破判定の共有トリガー化とCAMP開始・100F `GAME_OVER` 遷移への接続
+- stateへの `enemies` 追加
+- フロア補正式を10%／+1へ修正（旧25%／+5の除去）
+- unit / integration / API tests
 
 やらないこと:
 
 - 最終的なAI方式
 - 外部AIサービス
+- 冒険者から敵への攻撃Use Case（マスター撃破判定トリガーは共有化するが、呼び出し元はまだ敵行動側だけ）
+- 戦闘開始後の追加出現（[[ダンジョン/マスターとミニオン]] 11章）
+- 真の意味での事前Policy timeout（強制打ち切り）
 
 想定コミット:
 
 ```text
-feat: add replaceable enemy decision policy
+feat: add enemy groups, RunEnemy runtime, and enemy decision policy
 ```
 
 ### Commit 8: 新アプリへの切替と旧コード削除
@@ -1527,10 +1661,10 @@ refactor: replace obsolete game implementation
 ```text
 ushinonaruki/yt-live-dungeon を変更してください。
 
-正本は ushinonaruki/obsidian-vault の
-ゲーム/YTL100ダンジョン/ 配下です。
+正本は、この実装リポジトリ内の
+obsidian/YTL100ダンジョン/ 配下です。
 実装開始前に、詳細設計書の「参照する正本」に列挙されたMarkdownを読み直してください。
-Obsidian側は変更しないでください。
+obsidian/ 配下はこの実装リポジトリから変更しないでください。
 
 添付の「yt-live-dungeon 現行仕様ベース再構築・CAMP基盤 詳細設計／Claude Code実装指示」に従い、
 まず Commit 1 だけを実装してください。

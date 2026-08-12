@@ -28,3 +28,28 @@ ATTRIBUTE_MODIFIER_KEYS: tuple[str, ...] = (
 )
 
 STAT_MODIFIER_KEYS: tuple[str, ...] = ("max_hp", "max_mp") + ATTRIBUTE_MODIFIER_KEYS
+
+
+def validate_attribute_dict(attributes: dict) -> None:
+    """Rejects anything but exactly the 10 ATTRIBUTE_MODIFIER_KEYS with
+    integer values -- no missing key, no extra key, no bool/float/str.
+    Used at the application boundary for RunEnemy.attributes, which is
+    an unconstrained JSONB column at the DB level."""
+    from yt_live_dungeon.domain.errors import InvalidEnemyAttributesError
+
+    if not isinstance(attributes, dict):
+        raise InvalidEnemyAttributesError("attributes must be a mapping")
+
+    actual_keys = set(attributes)
+    expected_keys = set(ATTRIBUTE_MODIFIER_KEYS)
+    if actual_keys != expected_keys:
+        missing = expected_keys - actual_keys
+        extra = actual_keys - expected_keys
+        raise InvalidEnemyAttributesError(
+            f"attributes must have exactly the 10 attribute keys "
+            f"(missing={sorted(missing)}, extra={sorted(extra)})"
+        )
+
+    for key, value in attributes.items():
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise InvalidEnemyAttributesError(f"attribute value must be an int: {key!r}={value!r}")

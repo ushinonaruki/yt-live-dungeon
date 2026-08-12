@@ -4,6 +4,8 @@ from sqlalchemy import func, select
 from yt_live_dungeon.persistence.database import async_session_factory
 from yt_live_dungeon.persistence.models import (
     Enemy,
+    EnemyGroup,
+    EnemyGroupMember,
     EnemySpell,
     Item,
     Spell,
@@ -21,6 +23,8 @@ SEEDED_MODELS = {
     "spirit_item_pool_entries": SpiritItemPoolEntry,
     "enemies": Enemy,
     "enemy_spells": EnemySpell,
+    "enemy_groups": EnemyGroup,
+    "enemy_group_members": EnemyGroupMember,
 }
 
 

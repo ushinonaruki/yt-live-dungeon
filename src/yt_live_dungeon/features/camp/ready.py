@@ -18,6 +18,7 @@ async def handle_ready(command: Ready, context: CommandContext) -> CommandOutcom
         context.run_id,
         context.command_input.viewer_id,
         now=now,
+        random_source=context.random_source,
         lock_run=True,
     )
     if isinstance(resolved, CommandOutcome):
@@ -39,6 +40,8 @@ async def handle_ready(command: Ready, context: CommandContext) -> CommandOutcom
     )
 
     if await all_active_participants_ready(session, run.id, camp.id):
-        await end_camp(session, run, camp, now=now, reason="all_ready")
+        await end_camp(
+            session, run, camp, now=now, reason="all_ready", random_source=context.random_source
+        )
 
     return CommandOutcome(processed=True, reason=None, result=None)
