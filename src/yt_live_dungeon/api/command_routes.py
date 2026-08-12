@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from yt_live_dungeon.api.deps import get_session
 from yt_live_dungeon.api.schemas.command import CommandRequest, CommandResponse
+from yt_live_dungeon.features.camp.handlers import build_camp_handlers
 from yt_live_dungeon.features.commands.submit import submit_command
 from yt_live_dungeon.features.commands.types import CommandInput
 from yt_live_dungeon.persistence.queries.run import get_run
@@ -34,6 +35,8 @@ async def submit_run_command(
         raw_text=payload.raw_text,
         received_at=payload.received_at,
     )
-    record = await submit_command(session, run_id, command_input)
+    record = await submit_command(
+        session, run_id, command_input, handlers=build_camp_handlers()
+    )
 
     return CommandResponse(processed=record.processed, reason=record.reason, result=record.result)

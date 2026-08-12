@@ -24,6 +24,7 @@ async def test_get_state_returns_run_fields(client, existing_run):
     assert body["current_floor"] == 1
     assert body["ended_at"] is None
     assert "started_at" in body
+    assert body["camp"] is None
 
 
 async def test_get_state_for_missing_run_returns_404(client):

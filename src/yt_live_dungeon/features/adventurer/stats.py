@@ -13,20 +13,29 @@ class FinalStats:
     attributes: dict[str, int]
 
 
+def item_modifiers(entry: InventoryEntry) -> dict[str, int]:
+    """The (base + per_level * current_level) modifier for each stat key,
+    for a single owned item at its current level."""
+    definition = entry.definition
+    _validate_stat_modifiers(definition.base_stat_modifiers)
+    _validate_stat_modifiers(definition.per_level_stat_modifiers)
+
+    return {
+        key: definition.base_stat_modifiers.get(key, 0)
+        + definition.per_level_stat_modifiers.get(key, 0) * entry.current_level
+        for key in STAT_MODIFIER_KEYS
+    }
+
+
 def calculate_final_stats(
     base_max_hp: int, base_max_mp: int, entries: Iterable[InventoryEntry]
 ) -> FinalStats:
     totals = dict.fromkeys(STAT_MODIFIER_KEYS, 0)
 
     for entry in entries:
-        definition = entry.definition
-        _validate_stat_modifiers(definition.base_stat_modifiers)
-        _validate_stat_modifiers(definition.per_level_stat_modifiers)
-
+        modifiers = item_modifiers(entry)
         for key in STAT_MODIFIER_KEYS:
-            base = definition.base_stat_modifiers.get(key, 0)
-            per_level = definition.per_level_stat_modifiers.get(key, 0)
-            totals[key] += base + per_level * entry.current_level
+            totals[key] += modifiers[key]
 
     return FinalStats(
         max_hp=base_max_hp + totals["max_hp"],
