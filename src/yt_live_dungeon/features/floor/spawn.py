@@ -38,11 +38,14 @@ async def spawn_group(
 
     Each spawned enemy's MP natural-regen rate is snapshotted here, once,
     from the currently participating-and-alive adventurer count at this
-    exact moment (obsidian/.../ダンジョン/フロア補正.md section 5) --
-    every member of this group gets the same rate, and it never changes
-    afterward even if participants later log out or die. `now` anchors
-    that snapshot's regen clock (mp_regen_updated_at); it is otherwise
-    unused here.
+    exact moment (obsidian/.../ダンジョン/フロア補正.md section 5). Only
+    the master's rate is multiplied by that participant count -- every
+    minion keeps the base rate regardless of participant count, per the
+    same section. Role is read from each member's own registered role
+    (never array position), so this holds regardless of a group's
+    member ordering. Neither rate changes afterward even if participants
+    later log out or die. `now` anchors the regen clock
+    (mp_regen_updated_at); it is otherwise unused here.
 
     Never commits/rollbacks -- the caller owns the transaction.
 
@@ -76,12 +79,16 @@ async def spawn_group(
             f"{floor} start; must be between {MIN_PARTICIPANTS_TO_SPAWN} and "
             f"{MAX_PARTICIPANTS_TO_SPAWN}"
         )
-    mp_regen_rate = BASE_MP_REGEN_PER_SECOND * participant_count
+    master_mp_regen_rate = BASE_MP_REGEN_PER_SECOND * participant_count
 
     run_enemies = []
     for member, enemy in members:
         stats = calculate_enemy_floor_stats(enemy.base_max_hp, enemy.base_attributes, floor)
         validate_attribute_dict(stats.attributes)
+
+        mp_regen_rate = (
+            master_mp_regen_rate if member.role == "master" else BASE_MP_REGEN_PER_SECOND
+        )
 
         run_enemy = RunEnemy(
             run_id=run_id,

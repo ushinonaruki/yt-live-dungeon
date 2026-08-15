@@ -184,9 +184,13 @@ async def test_start_run_snapshots_mp_regen_rate_from_participant_count(
     assert spawned.mp_regen_updated_at == NOW
 
 
-async def test_start_run_gives_master_and_minion_the_same_mp_regen_rate(
+async def test_start_run_gives_master_participant_count_and_minion_the_base_rate(
     db_session, run_factory, enemy_factory, enemy_group_factory, adventurer_factory,
 ):
+    """Per obsidian/.../ダンジョン/フロア補正.md section 5: only the
+    master's MP natural-regen rate is multiplied by the floor-start
+    participant count. Minions always keep the base rate
+    (BASE_MP_REGEN_PER_SECOND), regardless of participant count."""
     master_enemy = await enemy_factory()
     minion_enemy = await enemy_factory()
     group = await enemy_group_factory(
@@ -208,4 +212,7 @@ async def test_start_run_gives_master_and_minion_the_same_mp_regen_rate(
         )
     ).scalars().all()
     assert len(spawned) == 2
-    assert {row.mp_regen_rate for row in spawned} == {3}
+    master = next(row for row in spawned if row.role == "master")
+    minion = next(row for row in spawned if row.role == "minion")
+    assert master.mp_regen_rate == 3
+    assert minion.mp_regen_rate == 1
