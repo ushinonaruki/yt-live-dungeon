@@ -27,7 +27,12 @@ ATTRIBUTE_MODIFIER_KEYS: tuple[str, ...] = (
     "rp",
 )
 
-STAT_MODIFIER_KEYS: tuple[str, ...] = ("max_hp", "max_mp") + ATTRIBUTE_MODIFIER_KEYS
+# max_mp is deliberately absent: obsidian/.../キャラクター/ステータス.md
+# section 5 and アイテム/アイテム定義仕様.md section 7 fix every
+# combatant's max MP at 100, never adjustable by an item's stat
+# modifiers. calculate_final_stats() rejects any modifier dict that
+# contains "max_mp" (see features/adventurer/stats.py).
+STAT_MODIFIER_KEYS: tuple[str, ...] = ("max_hp",) + ATTRIBUTE_MODIFIER_KEYS
 
 
 def validate_attribute_dict(attributes: dict) -> None:

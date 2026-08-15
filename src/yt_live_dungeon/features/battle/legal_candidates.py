@@ -62,7 +62,7 @@ async def _adventurer_snapshot(
 ) -> CombatantSnapshot:
     rows = await list_owned_rows(session, adventurer.id)
     entries = to_inventory_entries(rows)
-    stats = calculate_final_stats(adventurer.base_max_hp, adventurer.base_max_mp, entries)
+    stats = calculate_final_stats(adventurer.base_max_hp, entries)
     return CombatantSnapshot(
         combatant_id=str(adventurer.id),
         kind="adventurer",

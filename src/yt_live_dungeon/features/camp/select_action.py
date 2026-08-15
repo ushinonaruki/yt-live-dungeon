@@ -68,7 +68,7 @@ async def _rest(
 ) -> CommandOutcome:
     rows = await list_owned_rows(session, adventurer.id)
     entries = to_inventory_entries(rows)
-    stats = calculate_final_stats(adventurer.base_max_hp, adventurer.base_max_mp, entries)
+    stats = calculate_final_stats(adventurer.base_max_hp, entries)
 
     adventurer.hp = min(stats.max_hp, adventurer.hp + REST_HP_GAIN)
 
@@ -111,7 +111,6 @@ async def _acquire_candidate(
         hp=adventurer.hp,
         mp=adventurer.mp,
         base_max_hp=adventurer.base_max_hp,
-        base_max_mp=adventurer.base_max_mp,
     )
 
     if not result.success:
@@ -176,7 +175,6 @@ async def _forge_matching_items(
         hp=adventurer.hp,
         mp=adventurer.mp,
         base_max_hp=adventurer.base_max_hp,
-        base_max_mp=adventurer.base_max_mp,
     )
 
     await apply_entries(

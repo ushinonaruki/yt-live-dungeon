@@ -25,8 +25,8 @@ def _base_kwargs(run_id, group_id, enemy_id, **overrides):
         role="master",
         max_hp=100,
         hp=100,
-        max_mp=20,
-        mp=20,
+        max_mp=100,
+        mp=100,
         mp_regen_rate=1,
         mp_regen_updated_at=datetime.now(UTC),
         attributes={},
@@ -147,7 +147,22 @@ async def test_rejects_mp_above_max_mp(db_session, enemy_factory, enemy_group_fa
     enemy, group, run = await _setup(enemy_factory, enemy_group_factory, run_factory)
 
     with pytest.raises(IntegrityError):
-        db_session.add(RunEnemy(**_base_kwargs(run.id, group.id, enemy.id, mp=21, max_mp=20)))
+        db_session.add(RunEnemy(**_base_kwargs(run.id, group.id, enemy.id, mp=101)))
+        await db_session.flush()
+
+
+async def test_rejects_max_mp_other_than_100(
+    db_session, enemy_factory, enemy_group_factory, run_factory
+):
+    """Per obsidian/.../キャラクター/ステータス.md section 5: max MP is
+    fixed at 100 for every combatant, never varied by floor or
+    participant count."""
+    enemy, group, run = await _setup(enemy_factory, enemy_group_factory, run_factory)
+
+    with pytest.raises(IntegrityError):
+        db_session.add(
+            RunEnemy(**_base_kwargs(run.id, group.id, enemy.id, max_mp=20, mp=20))
+        )
         await db_session.flush()
 
 

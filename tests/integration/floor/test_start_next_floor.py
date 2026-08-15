@@ -19,7 +19,7 @@ async def _setup_group(enemy_factory, enemy_group_factory, *, base_max_hp: int =
     return group, enemy
 
 
-async def test_start_next_floor_heals_mp_to_item_inclusive_max(
+async def test_start_next_floor_heals_mp_to_the_fixed_max_regardless_of_items(
     db_session,
     spell_factory,
     item_factory,
@@ -29,16 +29,20 @@ async def test_start_next_floor_heals_mp_to_item_inclusive_max(
     enemy_factory,
     enemy_group_factory,
 ):
+    """Per obsidian/.../キャラクター/ステータス.md section 5 and section
+    9: max MP is fixed at 100 for every combatant and is never affected
+    by items; floor start heals current MP to that fixed max regardless
+    of what items a participant holds."""
     group, _enemy = await _setup_group(enemy_factory, enemy_group_factory)
     spell = await spell_factory()
-    item = await item_factory(granted_spell_id=spell.id, base_stat_modifiers={"max_mp": 30})
+    item = await item_factory(granted_spell_id=spell.id, base_stat_modifiers={"max_hp": 30})
     run = await run_factory(state=RunState.CAMP, current_floor=1, next_group_id=group.id)
     adventurer = await adventurer_factory(run_id=run.id, hp=100, mp=5)
     await inventory_item_factory(adventurer.id, item.id, slot=1, current_level=1)
 
     await start_next_floor(db_session, run, [adventurer], now=NOW, random_source=random.Random(1))
 
-    assert adventurer.mp == 100 + 30
+    assert adventurer.mp == 100
 
 
 async def test_start_next_floor_does_not_change_hp(

@@ -78,7 +78,7 @@ async def _create_open_camp_scenario():
             enemy_key=_unique("enemy"),
             display_name="Test Enemy",
             base_max_hp=100,
-            base_max_mp=20,
+            base_max_mp=100,
             base_attributes={},
             break_max=50,
         )

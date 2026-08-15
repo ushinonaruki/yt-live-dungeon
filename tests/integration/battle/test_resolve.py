@@ -437,7 +437,7 @@ async def test_mp_regen_makes_a_previously_unaffordable_spell_available(
     await adventurer_factory(run_id=run.id, hp=500, mp=100)
     actor = await run_enemy_factory(
         run.id, 1, group.id, enemy.id,
-        mp=0, max_mp=20,
+        mp=0, max_mp=100,
         mp_regen_rate=5, mp_regen_updated_at=NOW - timedelta(seconds=3),
         attributes=dict.fromkeys(ATTRIBUTE_MODIFIER_KEYS, 0),
     )
@@ -549,7 +549,7 @@ async def test_idle_time_at_full_mp_is_not_banked_for_reuse_after_consumption(
     the raw column, since it exercises the exact code path a Policy
     would see."""
     full_cost_spell = await spell_factory(
-        mp_cost=20,
+        mp_cost=100,
         target_rule="enemies",
         effects=[
             {
@@ -569,12 +569,12 @@ async def test_idle_time_at_full_mp_is_not_banked_for_reuse_after_consumption(
     long_idle_start = NOW - timedelta(seconds=1000)
     actor = await run_enemy_factory(
         run.id, 1, group.id, enemy.id,
-        mp=20, max_mp=20,  # already full after a long idle
+        mp=100, max_mp=100,  # already full after a long idle
         mp_regen_rate=5, mp_regen_updated_at=long_idle_start,
         attributes=dict.fromkeys(ATTRIBUTE_MODIFIER_KEYS, 0),
     )
 
-    # (1) consumes the full 20 mp -- clamped catch-up must still advance
+    # (1) consumes the full 100 mp -- clamped catch-up must still advance
     # the anchor to NOW, not leave it stuck at long_idle_start
     outcome_1 = await resolve_enemy_action(
         db_session, run.id, actor.id, now=NOW, random_source=random.Random(1)
@@ -585,7 +585,7 @@ async def test_idle_time_at_full_mp_is_not_banked_for_reuse_after_consumption(
     assert actor.mp_regen_updated_at == NOW
 
     # (2) same instant again -- if the old 1000s idle span were reused,
-    # mp would reheal to 20 and this spell would be affordable again
+    # mp would reheal to 100 and this spell would be affordable again
     outcome_2 = await resolve_enemy_action(
         db_session, run.id, actor.id, now=NOW, random_source=random.Random(1)
     )
@@ -593,15 +593,15 @@ async def test_idle_time_at_full_mp_is_not_banked_for_reuse_after_consumption(
     await db_session.refresh(actor)
     assert actor.mp == 0
 
-    # (3) exactly 4s later (4 * rate=5 == max_mp=20) -- the spell is
+    # (3) exactly 20s later (20 * rate=5 == max_mp=100) -- the spell is
     # affordable again, proving regen resumed from the correct anchor
     outcome_3 = await resolve_enemy_action(
-        db_session, run.id, actor.id, now=NOW + timedelta(seconds=4),
+        db_session, run.id, actor.id, now=NOW + timedelta(seconds=20),
         random_source=random.Random(1),
     )
     assert outcome_3.no_action is False
     await db_session.refresh(actor)
-    assert actor.mp == 0  # 20 regenerated, all 20 spent again
+    assert actor.mp == 0  # 100 regenerated, all 100 spent again
 
 
 async def _commit_basic_scenario() -> dict:
@@ -631,7 +631,7 @@ async def _commit_basic_scenario() -> dict:
         await session.flush()
 
         enemy = Enemy(
-            enemy_key=_unique("enemy"), display_name="e", base_max_hp=100, base_max_mp=20,
+            enemy_key=_unique("enemy"), display_name="e", base_max_hp=100, base_max_mp=100,
             base_attributes={}, break_max=50,
         )
         session.add(enemy)
@@ -658,7 +658,7 @@ async def _commit_basic_scenario() -> dict:
 
         run_enemy = RunEnemy(
             run_id=run.id, floor=1, group_id=group.id, enemy_id=enemy.id, order_in_group=1,
-            role="master", max_hp=100, hp=100, max_mp=20, mp=20,
+            role="master", max_hp=100, hp=100, max_mp=100, mp=100,
             # Exactly NOW (not datetime.now(UTC)) so that both concurrent
             # resolve_enemy_action() calls below -- which also pass
             # now=NOW -- see zero elapsed regen time and the classic
@@ -675,9 +675,9 @@ async def _commit_basic_scenario() -> dict:
 async def test_concurrent_resolution_of_the_same_actor_serializes_without_lost_updates():
     """Proves the run-row + actor-row locking prevents a classic lost-
     update race: without it, two concurrent calls could both read
-    mp=20 before either commits its mp_cost=5 deduction, and the second
-    write would clobber the first, leaving mp=15 instead of the correct
-    mp=10. There is no turn concept in Commit 7 to stop the same actor
+    mp=100 before either commits its mp_cost=5 deduction, and the second
+    write would clobber the first, leaving mp=95 instead of the correct
+    mp=90. There is no turn concept in Commit 7 to stop the same actor
     from being asked to act twice -- what locking guarantees is that
     each call's read-modify-write of shared state is serialized and
     neither is lost, not that a second call is refused outright.
@@ -711,7 +711,7 @@ async def test_concurrent_resolution_of_the_same_actor_serializes_without_lost_u
             )
         ).scalars().all()
 
-    assert run_enemy.mp == 20 - 5 - 5  # both deductions landed -- no lost update
+    assert run_enemy.mp == 100 - 5 - 5  # both deductions landed -- no lost update
     assert len(events) == 2
     assert first.no_action is False
     assert second.no_action is False

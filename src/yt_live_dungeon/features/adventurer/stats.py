@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from yt_live_dungeon.domain.attributes import ATTRIBUTE_MODIFIER_KEYS, STAT_MODIFIER_KEYS
 from yt_live_dungeon.domain.errors import InvalidStatModifierError
 from yt_live_dungeon.domain.inventory import InventoryEntry
+from yt_live_dungeon.domain.mp_regen import MAX_MP
 
 
 @dataclass(frozen=True)
@@ -27,9 +28,10 @@ def item_modifiers(entry: InventoryEntry) -> dict[str, int]:
     }
 
 
-def calculate_final_stats(
-    base_max_hp: int, base_max_mp: int, entries: Iterable[InventoryEntry]
-) -> FinalStats:
+def calculate_final_stats(base_max_hp: int, entries: Iterable[InventoryEntry]) -> FinalStats:
+    """max_mp is always MAX_MP -- no base_max_mp input exists here because
+    there is nothing variable to combine it with (item_modifiers() never
+    yields a "max_mp" key; see STAT_MODIFIER_KEYS)."""
     totals = dict.fromkeys(STAT_MODIFIER_KEYS, 0)
 
     for entry in entries:
@@ -39,7 +41,7 @@ def calculate_final_stats(
 
     return FinalStats(
         max_hp=base_max_hp + totals["max_hp"],
-        max_mp=base_max_mp + totals["max_mp"],
+        max_mp=MAX_MP,
         attributes={key: totals[key] for key in ATTRIBUTE_MODIFIER_KEYS},
     )
 
@@ -55,8 +57,8 @@ def usable_spell_ids(entries: Iterable[InventoryEntry]) -> list[int]:
     return ordered
 
 
-def clamp_current_vitals(hp: int, mp: int, max_hp: int, max_mp: int) -> tuple[int, int]:
-    return min(hp, max_hp), min(mp, max_mp)
+def clamp_current_vitals(hp: int, mp: int, max_hp: int) -> tuple[int, int]:
+    return min(hp, max_hp), min(mp, MAX_MP)
 
 
 def _validate_stat_modifiers(modifiers: dict) -> None:

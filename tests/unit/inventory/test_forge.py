@@ -5,9 +5,7 @@ def test_forge_increases_level_for_all_matching_attribute_items(make_entry):
     matching_a = make_entry(slot=1, item_id=1, attribute="RR", current_level=1)
     matching_b = make_entry(slot=2, item_id=2, attribute="RR", current_level=3)
 
-    result = forge(
-        [matching_a, matching_b], "RR", hp=500, mp=100, base_max_hp=500, base_max_mp=100
-    )
+    result = forge([matching_a, matching_b], "RR", hp=500, mp=100, base_max_hp=500)
 
     levels = {e.definition.item_id: e.current_level for e in result.entries}
     assert levels[1] == 2
@@ -19,7 +17,7 @@ def test_forge_leaves_non_matching_attribute_items_unchanged(make_entry):
     matching = make_entry(slot=1, item_id=1, attribute="RR", current_level=1)
     other = make_entry(slot=2, item_id=2, attribute="BB", current_level=1)
 
-    result = forge([matching, other], "RR", hp=500, mp=100, base_max_hp=500, base_max_mp=100)
+    result = forge([matching, other], "RR", hp=500, mp=100, base_max_hp=500)
 
     levels = {e.definition.item_id: e.current_level for e in result.entries}
     assert levels[1] == 2
@@ -32,7 +30,7 @@ def test_forge_includes_blessing_like_item_in_the_same_matching_pass(make_entry)
     # `attribute`, the same as any pool item.
     blessing_like = make_entry(slot=1, item_id=1, attribute="RR", current_level=1)
 
-    result = forge([blessing_like], "RR", hp=500, mp=100, base_max_hp=500, base_max_mp=100)
+    result = forge([blessing_like], "RR", hp=500, mp=100, base_max_hp=500)
 
     assert result.entries[0].current_level == 2
     assert result.affected_count == 1
@@ -41,26 +39,43 @@ def test_forge_includes_blessing_like_item_in_the_same_matching_pass(make_entry)
 def test_forge_with_zero_matches_succeeds_with_affected_count_zero(make_entry):
     other = make_entry(slot=1, item_id=1, attribute="BB", current_level=1)
 
-    result = forge([other], "RR", hp=500, mp=100, base_max_hp=500, base_max_mp=100)
+    result = forge([other], "RR", hp=500, mp=100, base_max_hp=500)
 
     assert result.affected_count == 0
     assert result.entries[0].current_level == 1
 
 
-def test_forge_clamps_current_hp_and_mp_to_new_max(make_entry):
+def test_forge_clamps_current_hp_to_new_max_hp(make_entry):
     entry = make_entry(
         slot=1,
         item_id=1,
         attribute="RR",
         current_level=1,
         base_stat_modifiers={},
-        per_level_stat_modifiers={"max_hp": -100, "max_mp": -20},
+        per_level_stat_modifiers={"max_hp": -100},
     )
 
-    result = forge([entry], "RR", hp=500, mp=100, base_max_hp=500, base_max_mp=100)
+    result = forge([entry], "RR", hp=500, mp=100, base_max_hp=500)
 
-    # level goes 1 -> 2, so max_hp = 500 + (-100*2) = 300, max_mp = 100 + (-20*2) = 60
+    # level goes 1 -> 2, so max_hp = 500 + (-100*2) = 300
     assert result.max_hp == 300
-    assert result.max_mp == 60
     assert result.hp == 300
-    assert result.mp == 60
+
+
+def test_forge_never_changes_max_mp_or_current_mp(make_entry):
+    """Per obsidian/.../キャラクター/ステータス.md section 5: max MP is
+    fixed at 100 for every combatant and is never affected by forging
+    (item Lv up)."""
+    entry = make_entry(
+        slot=1,
+        item_id=1,
+        attribute="RR",
+        current_level=1,
+        base_stat_modifiers={},
+        per_level_stat_modifiers={"max_hp": -100},
+    )
+
+    result = forge([entry], "RR", hp=500, mp=100, base_max_hp=500)
+
+    assert result.max_mp == 100
+    assert result.mp == 100

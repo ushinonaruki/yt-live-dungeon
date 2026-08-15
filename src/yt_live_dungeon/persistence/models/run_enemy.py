@@ -51,6 +51,10 @@ class RunEnemy(Base):
         CheckConstraint("hp >= 0", name="hp_non_negative"),
         CheckConstraint("hp <= max_hp", name="hp_within_max"),
         CheckConstraint("max_mp >= 0", name="max_mp_non_negative"),
+        # obsidian/.../キャラクター/ステータス.md section 5: max MP is
+        # fixed at 100 for every combatant, never varied by floor or
+        # participant count.
+        CheckConstraint("max_mp = 100", name="max_mp_fixed_100"),
         CheckConstraint("mp >= 0", name="mp_non_negative"),
         CheckConstraint("mp <= max_mp", name="mp_within_max"),
         CheckConstraint("mp_regen_rate BETWEEN 1 AND 8", name="mp_regen_rate_in_range"),

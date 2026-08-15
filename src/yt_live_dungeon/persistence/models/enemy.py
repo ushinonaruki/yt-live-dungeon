@@ -14,6 +14,10 @@ class Enemy(Base):
             name="weak_attribute_valid",
         ),
         CheckConstraint("break_max >= 0", name="break_max_non_negative"),
+        # obsidian/.../キャラクター/ステータス.md section 5: max MP is
+        # fixed at 100 for every combatant, never varied per enemy
+        # template.
+        CheckConstraint("base_max_mp = 100", name="base_max_mp_fixed_100"),
         {"schema": "master"},
     )
 

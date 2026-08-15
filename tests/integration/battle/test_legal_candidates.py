@@ -213,13 +213,13 @@ async def test_ally_snapshot_mp_is_projected_to_now_not_the_raw_db_column(
     # the ally has been idle: its DB column is stale by design
     ally = await run_enemy_factory(
         run.id, 1, group.id, minion_enemy.id, order_in_group=2, role="minion",
-        mp=0, max_mp=20, mp_regen_rate=4, mp_regen_updated_at=NOW - timedelta(seconds=5),
+        mp=0, max_mp=100, mp_regen_rate=4, mp_regen_updated_at=NOW - timedelta(seconds=30),
     )
 
     combatants = await build_floor_combatants(db_session, run.id, 1, actor, now=NOW)
 
     ally_snapshot = next(c for c in combatants.allies if c.combatant_id == str(ally.id))
-    assert ally_snapshot.mp == 20  # 5s * rate=4 = 20, clamped at max_mp=20
+    assert ally_snapshot.mp == 100  # 30s * rate=4 = 120, clamped at max_mp=100
 
     # snapshot-building must never write this projection back
     await db_session.refresh(ally)

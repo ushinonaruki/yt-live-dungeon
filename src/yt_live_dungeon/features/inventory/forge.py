@@ -22,7 +22,6 @@ def forge(
     hp: int,
     mp: int,
     base_max_hp: int,
-    base_max_mp: int,
 ) -> ForgeResult:
     new_entries = tuple(
         replace(e, current_level=e.current_level + 1) if e.definition.attribute == attribute else e
@@ -30,8 +29,8 @@ def forge(
     )
     affected_count = sum(1 for e in entries if e.definition.attribute == attribute)
 
-    stats = calculate_final_stats(base_max_hp, base_max_mp, new_entries)
-    clamped_hp, clamped_mp = clamp_current_vitals(hp, mp, stats.max_hp, stats.max_mp)
+    stats = calculate_final_stats(base_max_hp, new_entries)
+    clamped_hp, clamped_mp = clamp_current_vitals(hp, mp, stats.max_hp)
 
     return ForgeResult(
         entries=new_entries,

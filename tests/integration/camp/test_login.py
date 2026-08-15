@@ -197,7 +197,7 @@ async def test_login_new_adventurer_can_select_action_is_false(
     assert member.ready_at is None
 
 
-async def test_login_new_adventurer_hp_mp_reflect_granted_item_bonuses(
+async def test_login_new_adventurer_hp_reflects_item_bonuses_but_max_mp_stays_fixed(
     db_session,
     spell_factory,
     item_factory,
@@ -206,9 +206,12 @@ async def test_login_new_adventurer_hp_mp_reflect_granted_item_bonuses(
     run_factory,
     camp_factory,
 ):
+    """Per obsidian/.../キャラクター/ステータス.md section 5: max MP is
+    fixed at 100 for every combatant and is never affected by granted
+    items, unlike max HP."""
     spell = await spell_factory()
     blessing_item = await item_factory(
-        granted_spell_id=spell.id, base_stat_modifiers={"max_hp": 50, "max_mp": 10}
+        granted_spell_id=spell.id, base_stat_modifiers={"max_hp": 50}
     )
     spirit = await spirit_factory(blessing_item_id=blessing_item.id)
     pool_item = await item_factory(granted_spell_id=spell.id, base_stat_modifiers={"max_hp": 20})
@@ -236,7 +239,7 @@ async def test_login_new_adventurer_hp_mp_reflect_granted_item_bonuses(
     ).scalar_one()
 
     assert adventurer.hp == 500 + 50 + 20
-    assert adventurer.mp == 100 + 10
+    assert adventurer.mp == 100
 
 
 async def test_login_succeeds_from_seven_participants(
