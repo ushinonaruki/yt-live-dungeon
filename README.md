@@ -27,7 +27,7 @@ YouTube Live のコメントを参加コマンドとして扱う、リアルタ�
 ├── tests/                      # unit / integration / api
 │
 └── docker/
-    ├── python/Dockerfile         # apiサービス用マルチステージビルド
+    ├── api/Dockerfile            # apiサービス用マルチステージビルド
     ├── postgres/Dockerfile       # PostgreSQL
     └── redis/Dockerfile          # Redis
 ```
