@@ -8,6 +8,8 @@ from yt_live_dungeon.api.schemas.command import CommandRequest, CommandResponse
 from yt_live_dungeon.features.camp.handlers import build_camp_handlers
 from yt_live_dungeon.features.commands.submit import submit_command
 from yt_live_dungeon.features.commands.types import CommandInput
+from yt_live_dungeon.features.waiting.handlers import build_waiting_handlers
+from yt_live_dungeon.persistence.models import RunState
 from yt_live_dungeon.persistence.queries.run import get_run
 
 router = APIRouter()
@@ -35,8 +37,14 @@ async def submit_run_command(
         raw_text=payload.raw_text,
         received_at=payload.received_at,
     )
-    record = await submit_command(
-        session, run_id, command_input, handlers=build_camp_handlers()
-    )
+    # The handler registry is picked from this unlocked read of run.state
+    # alone -- submit_command() itself locks the run row FOR UPDATE before
+    # a handler runs, and every WAITING/CAMP handler re-checks the state
+    # it actually needs under that lock, so a stale read here (the state
+    # changing between this check and the locked handler run) can only
+    # ever cause a correct rejection, never a wrong handler actually
+    # mutating state for the wrong run phase.
+    handlers = build_waiting_handlers() if run.state == RunState.WAITING else build_camp_handlers()
+    record = await submit_command(session, run_id, command_input, handlers=handlers)
 
     return CommandResponse(processed=record.processed, reason=record.reason, result=record.result)

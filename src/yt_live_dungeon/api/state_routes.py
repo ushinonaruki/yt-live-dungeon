@@ -17,6 +17,7 @@ from yt_live_dungeon.api.schemas.run_state import RunStateResponse
 from yt_live_dungeon.domain.mp_regen import apply_mp_regen
 from yt_live_dungeon.features.camp.deadline import ensure_camp_deadline_evaluated
 from yt_live_dungeon.features.camp.state import CampStateData, get_camp_state
+from yt_live_dungeon.features.waiting.deadline import ensure_waiting_deadline_evaluated
 from yt_live_dungeon.persistence.queries.event import list_events_after
 from yt_live_dungeon.persistence.queries.run import get_run
 from yt_live_dungeon.persistence.queries.run_enemy import list_floor_enemies_with_master_data
@@ -68,11 +69,18 @@ async def get_run_state(
         raise HTTPException(status_code=404, detail="run not found")
 
     # The GET route is the only entry point for state polling, so it must
-    # itself evaluate (and, if needed, enforce) the CAMP deadline rather
-    # than relying solely on the next command to notice it -- there is no
-    # resident scheduler. This is the transaction owner for that possible
-    # mutation; nothing upstream commits on its behalf.
+    # itself evaluate (and, if needed, enforce) the CAMP and WAITING
+    # deadlines rather than relying solely on the next command to notice
+    # them -- there is no resident scheduler. This is the transaction
+    # owner for those possible mutations; nothing upstream commits on
+    # their behalf. Both calls are unconditionally safe regardless of
+    # run.state: each no-ops unless it finds its own state (CAMP /
+    # WAITING respectively), so at most one of them ever does anything
+    # for a given run.
     await ensure_camp_deadline_evaluated(
+        session, run_id, now=now, random_source=random.Random()
+    )
+    await ensure_waiting_deadline_evaluated(
         session, run_id, now=now, random_source=random.Random()
     )
     await session.commit()

@@ -47,3 +47,10 @@ class Run(Base):
     ended_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # The initial-participation deadline (obsidian/.../進行/参加受付.md
+    # section 6). Null until the first successful @login sets it to
+    # that moment + 5 minutes; never set at run creation, and never
+    # re-set by any later @login/@logout.
+    waiting_deadline_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )

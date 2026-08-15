@@ -34,3 +34,11 @@ class RunAdventurer(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    # READY state during the run's initial WAITING participation window
+    # only (obsidian/.../進行/参加受付.md section 7). Distinct from
+    # RunCampMember.ready_at, which tracks READY per floor's CAMP
+    # instead -- WAITING has no RunCamp row to attach a membership-style
+    # ready flag to, and happens at most once per run.
+    waiting_ready_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
