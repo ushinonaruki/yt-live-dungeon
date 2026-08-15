@@ -152,17 +152,12 @@ async def test_deadline_evaluation_is_idempotent_once_started(
 async def test_master_and_minion_mp_regen_rate_after_waiting_triggered_start(
     db_session, run_factory, adventurer_factory, enemy_factory, enemy_group_factory
 ):
-    """The master's MP regen rate becomes the floor-start participant
-    count (obsidian/.../ダンジョン/フロア補正.md section 5). Minions are
-    documented there as exempt from this multiplier, but
-    features/floor/spawn.py -- reused as-is by start_run(), unmodified
-    by this task -- currently assigns the *same* multiplied rate to
-    every group member regardless of role. This mirrors the existing,
-    already-locked-in behavior asserted by
-    tests/integration/floor/test_run_start.py::
-    test_start_run_gives_master_and_minion_the_same_mp_regen_rate; see
-    this task's completion report for this pre-existing spec/implementation
-    discrepancy, which is out of scope to fix here.
+    """Per obsidian/.../ダンジョン/フロア補正.md section 5: the master's MP
+    regen rate becomes the floor-start participant count, while every
+    minion keeps the base rate (BASE_MP_REGEN_PER_SECOND) regardless of
+    participant count. Uses 3 participants (not 1) so a bug that
+    multiplied the minion's rate too would be distinguishable from
+    correct base-rate behavior.
     """
     master_enemy = await enemy_factory()
     minion_enemy = await enemy_factory()
@@ -193,7 +188,7 @@ async def test_master_and_minion_mp_regen_rate_after_waiting_triggered_start(
     master = next(row for row in spawned if row.role == "master")
     minion = next(row for row in spawned if row.role == "minion")
     assert master.mp_regen_rate == 3
-    assert minion.mp_regen_rate == 3  # see docstring: spec says this should be 1 (base rate)
+    assert minion.mp_regen_rate == 1
 
 
 async def test_deadline_evaluation_is_a_no_op_when_run_is_not_waiting(db_session, run_factory):
