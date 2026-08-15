@@ -4,7 +4,8 @@ RUN pip install --no-cache-dir uv==0.8.13
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    API_PORT_CONTAINER=8000
 
 WORKDIR /app
 
@@ -24,8 +25,8 @@ RUN uv sync --frozen --no-group dev --no-editable && \
 ENV PATH="/app/.venv/bin:$PATH"
 
 USER app
-EXPOSE 8000
-CMD ["uvicorn", "yt_live_dungeon.app:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE ${API_PORT_CONTAINER}
+CMD ["sh", "-c", "exec uvicorn yt_live_dungeon.app:app --host 0.0.0.0 --port ${API_PORT_CONTAINER}"]
 
 FROM source AS dev
 
@@ -37,5 +38,5 @@ RUN uv sync --frozen --no-editable && \
 ENV PATH="/app/.venv/bin:$PATH"
 
 USER app
-EXPOSE 8000
-CMD ["uvicorn", "yt_live_dungeon.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+EXPOSE ${API_PORT_CONTAINER}
+CMD ["sh", "-c", "exec uvicorn yt_live_dungeon.app:app --host 0.0.0.0 --port ${API_PORT_CONTAINER} --reload"]

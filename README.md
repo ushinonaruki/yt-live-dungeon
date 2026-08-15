@@ -10,7 +10,6 @@ YouTube Live のコメントを参加コマンドとして扱う、リアルタ�
 ```text
 .
 ├── compose.yaml                # Docker Compose（api + postgres + redis）
-├── Dockerfile                  # api用マルチステージビルド
 ├── alembic.ini                 # Alembic設定（src/yt_live_dungeon/migrations を参照）
 ├── pyproject.toml / uv.lock    # 依存パッケージ定義（唯一のPython package root）
 ├── .env.example                # 環境変数テンプレート
@@ -28,6 +27,7 @@ YouTube Live のコメントを参加コマンドとして扱う、リアルタ�
 ├── tests/                      # unit / integration / api
 │
 └── docker/
+    ├── python/Dockerfile         # apiサービス用マルチステージビルド
     ├── postgres/Dockerfile       # PostgreSQL
     └── redis/Dockerfile          # Redis
 ```
