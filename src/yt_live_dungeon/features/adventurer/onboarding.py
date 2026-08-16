@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from yt_live_dungeon.domain.errors import LoginConfigurationError
 from yt_live_dungeon.domain.inventory import InventoryEntry
+from yt_live_dungeon.domain.mp_regen import MAX_MP
 from yt_live_dungeon.domain.random_source import RandomSource
 from yt_live_dungeon.features.adventurer.stats import calculate_final_stats
 from yt_live_dungeon.persistence.models import Run, RunAdventurer
@@ -15,9 +16,10 @@ from yt_live_dungeon.persistence.queries.spirit import (
     list_active_spirit_ids,
 )
 
-# A brand-new adventurer's starting base stats, before any granted items.
+# A brand-new adventurer's starting base HP, before any granted items.
+# Max MP has no equivalent "base" constant of its own -- it is always
+# the single fixed MAX_MP (see domain/mp_regen.py).
 NEW_ADVENTURER_BASE_MAX_HP = 500
-NEW_ADVENTURER_BASE_MAX_MP = 100
 
 
 async def onboard_new_adventurer(
@@ -54,9 +56,9 @@ async def onboard_new_adventurer(
         run_id=run.id,
         youtube_id=viewer_id,
         hp=NEW_ADVENTURER_BASE_MAX_HP,
-        mp=NEW_ADVENTURER_BASE_MAX_MP,
+        mp=MAX_MP,
         base_max_hp=NEW_ADVENTURER_BASE_MAX_HP,
-        base_max_mp=NEW_ADVENTURER_BASE_MAX_MP,
+        base_max_mp=MAX_MP,
         spirit_id=spirit.id,
         is_alive=True,
         is_participating=True,
@@ -74,7 +76,7 @@ async def onboard_new_adventurer(
         session, adventurer.id, [], entries, acquired_floor=run.current_floor, acquired_at=now
     )
 
-    stats = calculate_final_stats(adventurer.base_max_hp, adventurer.base_max_mp, entries)
+    stats = calculate_final_stats(adventurer.base_max_hp, entries)
     adventurer.hp = stats.max_hp
     adventurer.mp = stats.max_mp
 

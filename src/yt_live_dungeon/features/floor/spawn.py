@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from yt_live_dungeon.domain.attributes import validate_attribute_dict
 from yt_live_dungeon.domain.errors import EnemyGroupConfigurationError, InvalidParticipantCountError
+from yt_live_dungeon.domain.mp_regen import MAX_MP
 from yt_live_dungeon.features.floor.scaling import calculate_enemy_floor_stats
 from yt_live_dungeon.persistence.models import RunEnemy
 from yt_live_dungeon.persistence.queries.adventurer import list_active_participants
@@ -31,10 +32,13 @@ async def spawn_group(
 ) -> list[RunEnemy]:
     """Expands `group_id`'s fixed, pre-registered composition into
     RunEnemy rows for `run_id`'s `floor`: floor-scaled max HP and
-    10-attributes (current HP/MP start at their respective max), role,
-    and order copied verbatim from the group's registered members. No
-    master/minion count or species is drawn here -- the group's already
-    -validated composition is expanded as-is.
+    10-attributes (current HP starts at that max), role, and order
+    copied verbatim from the group's registered members. Max/current MP
+    always start at the single fixed MAX_MP (obsidian/.../キャラクター/
+    ステータス.md section 5) -- the enemy template's own `base_max_mp`
+    column is never read here. No master/minion count or species is
+    drawn here -- the group's already-validated composition is expanded
+    as-is.
 
     Each spawned enemy's MP natural-regen rate is snapshotted here, once,
     from the currently participating-and-alive adventurer count at this
@@ -99,8 +103,8 @@ async def spawn_group(
             role=member.role,
             max_hp=stats.max_hp,
             hp=stats.max_hp,
-            max_mp=enemy.base_max_mp,
-            mp=enemy.base_max_mp,
+            max_mp=MAX_MP,
+            mp=MAX_MP,
             mp_regen_rate=mp_regen_rate,
             mp_regen_updated_at=now,
             attributes=stats.attributes,

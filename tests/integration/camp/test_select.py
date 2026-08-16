@@ -329,7 +329,7 @@ async def test_unowned_candidate_fails_when_inventory_full(
     }
 
 
-async def test_candidate_acquisition_clamps_hp_and_mp_when_max_decreases(
+async def test_candidate_acquisition_clamps_hp_when_max_hp_decreases_but_max_mp_stays_fixed(
     db_session,
     spell_factory,
     item_factory,
@@ -340,12 +340,15 @@ async def test_candidate_acquisition_clamps_hp_and_mp_when_max_decreases(
     camp_factory,
     camp_member_factory,
 ):
+    """Per obsidian/.../キャラクター/ステータス.md section 5: max MP is
+    fixed at 100 for every combatant and is never affected by acquired
+    items, unlike max HP."""
     spell = await spell_factory()
     blessing_item = await item_factory(granted_spell_id=spell.id)
     spirit = await spirit_factory(blessing_item_id=blessing_item.id)
     draining_item = await item_factory(
         granted_spell_id=spell.id,
-        base_stat_modifiers={"max_hp": -400, "max_mp": -80},
+        base_stat_modifiers={"max_hp": -400},
     )
     other_candidate = await item_factory(granted_spell_id=spell.id)
     await pool_entry_factory(spirit_id=spirit.id, item_id=draining_item.id)
@@ -368,8 +371,8 @@ async def test_candidate_acquisition_clamps_hp_and_mp_when_max_decreases(
     assert outcome.processed is True
     # base_max_hp=500 + (-400) = 100; hp was 500 -> clamped down to 100
     assert adventurer.hp == 100
-    # base_max_mp=100 + (-80) = 20; mp was 100 -> clamped down to 20
-    assert adventurer.mp == 20
+    # max MP is fixed at 100 regardless of items; mp was already 100
+    assert adventurer.mp == 100
 
 
 async def test_duplicate_candidate_succeeds_even_when_inventory_full(

@@ -1,7 +1,16 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,6 +21,11 @@ class RunAdventurer(Base):
     __tablename__ = "run_adventurers"
     __table_args__ = (
         UniqueConstraint("run_id", "youtube_id", name="uq_run_adventurers_run_id_youtube_id"),
+        # obsidian/.../キャラクター/ステータス.md section 5: max MP is
+        # fixed at 100 for every combatant, never adjustable by items.
+        CheckConstraint("base_max_mp = 100", name="base_max_mp_fixed_100"),
+        CheckConstraint("mp >= 0", name="mp_non_negative"),
+        CheckConstraint("mp <= 100", name="mp_within_max"),
         {"schema": "runtime"},
     )
 

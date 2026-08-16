@@ -119,7 +119,7 @@ def enemy_factory(db_session):
             enemy_key="test_enemy",
             display_name="test enemy",
             base_max_hp=100,
-            base_max_mp=20,
+            base_max_mp=100,
             base_attributes={},
             break_max=50,
             is_active=True,

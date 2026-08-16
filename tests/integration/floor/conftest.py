@@ -132,7 +132,7 @@ def enemy_factory(db_session):
             enemy_key=unique("enemy"),
             display_name="test enemy",
             base_max_hp=100,
-            base_max_mp=20,
+            base_max_mp=100,
             base_attributes=dict.fromkeys(ATTRIBUTE_MODIFIER_KEYS, 5),
             weak_attribute=None,
             break_max=50,

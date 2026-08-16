@@ -23,7 +23,7 @@ async def handle_status(command: Status, context: CommandContext) -> CommandOutc
 
     rows = await list_owned_rows(session, adventurer.id)
     entries = to_inventory_entries(rows)
-    stats = calculate_final_stats(adventurer.base_max_hp, adventurer.base_max_mp, entries)
+    stats = calculate_final_stats(adventurer.base_max_hp, entries)
 
     member = await get_camp_member(session, camp.id, adventurer.id)
     is_ready = member is not None and member.ready_at is not None

@@ -97,8 +97,8 @@ items:
     display_name: 潮の護符(仮)
     attribute: BB
     granted_spell_command: spell_blessing_tide
-    base_stat_modifiers: {max_mp: 20, bb: 10}
-    per_level_stat_modifiers: {max_mp: 2, bb: 1}
+    base_stat_modifiers: {bb: 10}
+    per_level_stat_modifiers: {bb: 1}
     break_effects: []
     is_active: true
   - item_key: item_pool_tide_1
@@ -140,7 +140,7 @@ enemies:
   - enemy_key: enemy_slime
     display_name: スライム(仮)
     base_max_hp: 100
-    base_max_mp: 20
+    base_max_mp: 100
     base_attributes:
       rr: 5
       yr: 5

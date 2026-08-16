@@ -10,6 +10,15 @@ class Item(Base):
     __tablename__ = "items"
     __table_args__ = (
         CheckConstraint(f"attribute IN {ATTRIBUTE_CODES}", name="attribute_valid"),
+        # obsidian/.../アイテム/アイテム定義仕様.md section 7: max MP is
+        # fixed at 100 for every combatant, so item stat modifiers may
+        # never carry a "max_mp" key.
+        CheckConstraint(
+            "NOT (base_stat_modifiers ? 'max_mp')", name="base_stat_modifiers_no_max_mp"
+        ),
+        CheckConstraint(
+            "NOT (per_level_stat_modifiers ? 'max_mp')", name="per_level_stat_modifiers_no_max_mp"
+        ),
         {"schema": "master"},
     )
 

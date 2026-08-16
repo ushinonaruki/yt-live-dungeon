@@ -206,7 +206,7 @@ async def test_floor_generation_failure_does_not_leave_camp_ended_alone():
             enemy_key=_unique("enemy"),
             display_name="e",
             base_max_hp=100,
-            base_max_mp=20,
+            base_max_mp=100,
             base_attributes={},
             break_max=50,
         )

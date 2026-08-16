@@ -71,6 +71,20 @@ async def test_each_active_spirit_has_at_least_two_pool_items():
             assert pool_count >= 2, f"{spirit.spirit_key} has fewer than 2 pool items"
 
 
+def test_development_seed_items_carry_no_max_mp_modifier():
+    """Per obsidian/.../アイテム/アイテム定義仕様.md section 7: max MP is
+    fixed at 100 for every combatant, so no item's stat modifiers may
+    include a "max_mp" key."""
+    for item in DEVELOPMENT_SEED.get("items", []):
+        assert "max_mp" not in item.get("base_stat_modifiers", {}), item["item_key"]
+        assert "max_mp" not in item.get("per_level_stat_modifiers", {}), item["item_key"]
+
+
+def test_development_seed_enemies_have_base_max_mp_of_100():
+    for enemy in DEVELOPMENT_SEED.get("enemies", []):
+        assert enemy["base_max_mp"] == 100, enemy["enemy_key"]
+
+
 async def test_blessing_item_not_in_its_own_pool():
     await _load_development_seed()
 

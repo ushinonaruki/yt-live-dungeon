@@ -37,11 +37,11 @@ async def _create_battle_scenario():
     async with async_session_factory() as session:
         master_enemy = Enemy(
             enemy_key=_unique("enemy"), display_name="Master Slime", base_max_hp=100,
-            base_max_mp=20, base_attributes={}, break_max=50,
+            base_max_mp=100, base_attributes={}, break_max=50,
         )
         minion_enemy = Enemy(
             enemy_key=_unique("enemy"), display_name="Minion Slime", base_max_hp=50,
-            base_max_mp=10, base_attributes={}, break_max=50,
+            base_max_mp=100, base_attributes={}, break_max=50,
         )
         session.add_all([master_enemy, minion_enemy])
         await session.flush()
@@ -67,13 +67,13 @@ async def _create_battle_scenario():
 
         master_run_enemy = RunEnemy(
             run_id=run.id, floor=1, group_id=group.id, enemy_id=master_enemy.id,
-            order_in_group=1, role="master", max_hp=100, hp=80, max_mp=20, mp=15,
+            order_in_group=1, role="master", max_hp=100, hp=80, max_mp=100, mp=15,
             mp_regen_rate=1, mp_regen_updated_at=FIXED_NOW,
             attributes={"rr": 5}, defeated_at=None,
         )
         minion_run_enemy = RunEnemy(
             run_id=run.id, floor=1, group_id=group.id, enemy_id=minion_enemy.id,
-            order_in_group=2, role="minion", max_hp=50, hp=0, max_mp=10, mp=10,
+            order_in_group=2, role="minion", max_hp=50, hp=0, max_mp=100, mp=10,
             mp_regen_rate=1, mp_regen_updated_at=FIXED_NOW,
             attributes={"rr": 3}, defeated_at=FIXED_NOW,
         )
@@ -81,7 +81,7 @@ async def _create_battle_scenario():
         # scenario's /state response
         stale_run_enemy = RunEnemy(
             run_id=run.id, floor=0, group_id=group.id, enemy_id=master_enemy.id,
-            order_in_group=1, role="master", max_hp=100, hp=0, max_mp=20, mp=0,
+            order_in_group=1, role="master", max_hp=100, hp=0, max_mp=100, mp=0,
             mp_regen_rate=1, mp_regen_updated_at=FIXED_NOW,
             attributes={}, defeated_at=FIXED_NOW,
         )
@@ -106,7 +106,7 @@ async def test_state_returns_current_floor_enemies_with_required_fields(client, 
     assert master_dto["order_in_group"] == 1
     assert master_dto["max_hp"] == 100
     assert master_dto["hp"] == 80
-    assert master_dto["max_mp"] == 20
+    assert master_dto["max_mp"] == 100
     assert master_dto["mp"] == 15  # zero elapsed since mp_regen_updated_at == frozen_now
     assert master_dto["attributes"] == {"rr": 5}
     assert master_dto["is_alive"] is True
@@ -136,16 +136,16 @@ async def test_state_does_not_expose_next_group_publicly(client, frozen_now):
     assert "next_group_id" not in body
 
 
-async def _create_idle_regen_scenario(
-    *, elapsed_seconds: int, regen_rate: int = 4, max_mp: int = 50
-):
+async def _create_idle_regen_scenario(*, elapsed_seconds: int, regen_rate: int = 4):
     """A single living enemy with mp=0 and a regen anchor `elapsed_seconds`
     before FIXED_NOW, so its logical mp at FIXED_NOW is deterministically
-    `min(max_mp, elapsed_seconds * regen_rate)`."""
+    `min(100, elapsed_seconds * regen_rate)` -- max MP is fixed at 100
+    for every combatant (obsidian/.../キャラクター/ステータス.md
+    section 5)."""
     async with async_session_factory() as session:
         enemy = Enemy(
             enemy_key=_unique("enemy"), display_name="Idle Slime", base_max_hp=100,
-            base_max_mp=max_mp, base_attributes={}, break_max=50,
+            base_max_mp=100, base_attributes={}, break_max=50,
         )
         session.add(enemy)
         await session.flush()
@@ -164,7 +164,7 @@ async def _create_idle_regen_scenario(
 
         run_enemy = RunEnemy(
             run_id=run.id, floor=1, group_id=group.id, enemy_id=enemy.id,
-            order_in_group=1, role="master", max_hp=100, hp=100, max_mp=max_mp, mp=0,
+            order_in_group=1, role="master", max_hp=100, hp=100, max_mp=100, mp=0,
             mp_regen_rate=regen_rate,
             mp_regen_updated_at=FIXED_NOW - timedelta(seconds=elapsed_seconds),
             attributes={}, defeated_at=None,
@@ -196,14 +196,14 @@ async def test_state_returns_the_exact_projected_mp_for_the_injected_now(
 
 
 async def test_state_clamps_the_projected_mp_at_max_mp(client, frozen_now):
-    # 20s * rate=4 = 80, well above max_mp=50 -- must clamp exactly
-    run_id, run_enemy = await _create_idle_regen_scenario(elapsed_seconds=20, max_mp=50)
+    # 30s * rate=4 = 120, well above the fixed max_mp=100 -- must clamp exactly
+    run_id, run_enemy = await _create_idle_regen_scenario(elapsed_seconds=30)
 
     response = await client.get(f"/api/v1/runs/{run_id}/state")
 
     body = response.json()
     dto = next(e for e in body["enemies"] if e["id"] == str(run_enemy.id))
-    assert dto["mp"] == 50
+    assert dto["mp"] == 100
 
 
 async def test_state_returns_the_same_mp_across_repeated_requests_at_the_same_now(
