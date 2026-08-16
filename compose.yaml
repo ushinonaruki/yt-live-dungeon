@@ -42,6 +42,24 @@ services:
     volumes:
       - redis_data:/data
 
+  pgadmin:
+    image: yt-live-dungeon-pgadmin
+    build:
+      context: ./docker/pgadmin
+      dockerfile: Dockerfile
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "${PGADMIN_PORT_HOST}:${PGADMIN_PORT_CONTAINER}"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:
+  pgadmin_data:
