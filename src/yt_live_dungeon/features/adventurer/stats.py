@@ -58,7 +58,7 @@ def usable_spell_ids(entries: Iterable[InventoryEntry]) -> list[int]:
 
 
 def clamp_current_vitals(hp: int, mp: int, max_hp: int) -> tuple[int, int]:
-    return min(hp, max_hp), min(mp, MAX_MP)
+    return min(hp, max_hp), max(0, min(mp, MAX_MP))
 
 
 def _validate_stat_modifiers(modifiers: dict) -> None:

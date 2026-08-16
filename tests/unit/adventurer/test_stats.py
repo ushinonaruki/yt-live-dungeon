@@ -230,3 +230,10 @@ def test_clamp_caps_mp_at_100_when_current_mp_exceeds_it():
     never exceeds 100."""
     _hp, mp = clamp_current_vitals(hp=100, mp=150, max_hp=500)
     assert mp == 100
+
+
+def test_clamp_floors_mp_at_0_when_current_mp_is_negative():
+    """Per obsidian/.../キャラクター/ステータス.md section 5: current MP
+    never goes below 0."""
+    _hp, mp = clamp_current_vitals(hp=100, mp=-1, max_hp=500)
+    assert mp == 0
