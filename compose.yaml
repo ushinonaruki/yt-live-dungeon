@@ -1,15 +1,10 @@
 services:
   api:
-    image: yt-live-dungeon-api
     build:
       context: .
       dockerfile: docker/api/Dockerfile
-      target: dev
     env_file:
       - .env
-    environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:${POSTGRES_PORT_CONTAINER}/${POSTGRES_DB}
-      REDIS_URL: redis://redis:${REDIS_PORT_CONTAINER}
     ports:
       - "${API_PORT_HOST}:${API_PORT_CONTAINER}"
     depends_on:
@@ -18,8 +13,22 @@ services:
       redis:
         condition: service_healthy
 
+  pgadmin:
+    build:
+      context: ./docker/pgadmin
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "${PGADMIN_PORT_HOST}:${PGADMIN_PORT_CONTAINER}"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
   postgres:
-    image: yt-live-dungeon-postgres
     build:
       context: ./docker/postgres
       dockerfile: Dockerfile
@@ -31,7 +40,6 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   redis:
-    image: yt-live-dungeon-redis
     build:
       context: ./docker/redis
       dockerfile: Dockerfile
@@ -41,23 +49,6 @@ services:
       - "${REDIS_PORT_HOST}:${REDIS_PORT_CONTAINER}"
     volumes:
       - redis_data:/data
-
-  pgadmin:
-    image: yt-live-dungeon-pgadmin
-    build:
-      context: ./docker/pgadmin
-      dockerfile: Dockerfile
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
-    ports:
-      - "${PGADMIN_PORT_HOST}:${PGADMIN_PORT_CONTAINER}"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: unless-stopped
 
 volumes:
   postgres_data:
