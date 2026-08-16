@@ -40,8 +40,8 @@ class RunAdventurer(Base):
     mp: Mapped[int] = mapped_column(Integer)
     base_max_hp: Mapped[int] = mapped_column(Integer, default=500)
     base_max_mp: Mapped[int] = mapped_column(Integer, default=100)
-    spirit_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("master.spirits.id"), nullable=True
+    egregore_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("master.egregores.id"), nullable=True
     )
     is_participating: Mapped[bool] = mapped_column(Boolean, default=True)
     is_alive: Mapped[bool] = mapped_column(Boolean, default=True)

@@ -3,6 +3,8 @@ from datetime import UTC, datetime, timedelta
 
 from yt_live_dungeon.persistence.database import async_session_factory
 from yt_live_dungeon.persistence.models import (
+    Egregore,
+    EgregoreItemPoolEntry,
     Enemy,
     EnemyGroup,
     EnemyGroupMember,
@@ -13,8 +15,6 @@ from yt_live_dungeon.persistence.models import (
     RunCampMember,
     RunState,
     Spell,
-    Spirit,
-    SpiritItemPoolEntry,
 )
 
 
@@ -46,13 +46,13 @@ async def _create_camp_scenario(*, started_at: datetime | None = None):
         session.add(blessing_item)
         await session.flush()
 
-        spirit = Spirit(
-            spirit_key=_unique("spirit"),
-            display_name="Test Spirit",
+        egregore = Egregore(
+            egregore_key=_unique("egregore"),
+            display_name="Test Egregore",
             representative_attribute="RR",
             blessing_item_id=blessing_item.id,
         )
-        session.add(spirit)
+        session.add(egregore)
         await session.flush()
 
         candidate_a = Item(
@@ -65,8 +65,8 @@ async def _create_camp_scenario(*, started_at: datetime | None = None):
         )
         session.add_all([candidate_a, candidate_b])
         await session.flush()
-        session.add(SpiritItemPoolEntry(spirit_id=spirit.id, item_id=candidate_a.id))
-        session.add(SpiritItemPoolEntry(spirit_id=spirit.id, item_id=candidate_b.id))
+        session.add(EgregoreItemPoolEntry(egregore_id=egregore.id, item_id=candidate_a.id))
+        session.add(EgregoreItemPoolEntry(egregore_id=egregore.id, item_id=candidate_b.id))
 
         enemy = Enemy(
             enemy_key=_unique("enemy"),
@@ -106,7 +106,7 @@ async def _create_camp_scenario(*, started_at: datetime | None = None):
         camp = RunCamp(
             run_id=run.id,
             floor=2,
-            spirit_id=spirit.id,
+            egregore_id=egregore.id,
             candidate_a_item_id=candidate_a.id,
             candidate_b_item_id=candidate_b.id,
             started_at=started_at,
@@ -130,7 +130,7 @@ async def _create_camp_scenario(*, started_at: datetime | None = None):
         )
         await session.commit()
 
-        return run.id, camp, candidate_a, candidate_b, adventurer_1, adventurer_2, spirit
+        return run.id, camp, candidate_a, candidate_b, adventurer_1, adventurer_2, egregore
 
 
 async def test_state_includes_camp_block_when_in_camp(client):
@@ -141,7 +141,7 @@ async def test_state_includes_camp_block_when_in_camp(client):
         candidate_b,
         adventurer_1,
         adventurer_2,
-        _spirit,
+        _egregore,
     ) = await _create_camp_scenario()
 
     response = await client.get(f"/api/v1/runs/{run_id}/state")
@@ -185,7 +185,7 @@ async def test_state_candidates_are_not_duplicated_per_member(client):
 
 
 async def test_events_after_returns_camp_action_event_triggered_via_command(client):
-    run_id, camp, candidate_a, candidate_b, adventurer_1, _a2, _spirit = (
+    run_id, camp, candidate_a, candidate_b, adventurer_1, _a2, _egregore = (
         await _create_camp_scenario()
     )
 

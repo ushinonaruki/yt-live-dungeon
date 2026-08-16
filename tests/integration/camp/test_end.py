@@ -9,6 +9,8 @@ from yt_live_dungeon.domain.errors import InvalidStatModifierError
 from yt_live_dungeon.features.camp.end import end_camp
 from yt_live_dungeon.persistence.database import async_session_factory
 from yt_live_dungeon.persistence.models import (
+    Egregore,
+    EgregoreItemPoolEntry,
     Enemy,
     EnemyGroup,
     EnemyGroupMember,
@@ -21,8 +23,6 @@ from yt_live_dungeon.persistence.models import (
     RunEvent,
     RunState,
     Spell,
-    Spirit,
-    SpiritItemPoolEntry,
 )
 from yt_live_dungeon.persistence.queries.camp import get_open_camp
 
@@ -36,22 +36,22 @@ def _unique(label: str) -> str:
 async def _setup_camp(
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
 ):
     spell = await spell_factory()
     blessing_item = await item_factory(granted_spell_id=spell.id)
-    spirit = await spirit_factory(blessing_item_id=blessing_item.id)
+    egregore = await egregore_factory(blessing_item_id=blessing_item.id)
     candidate_a = await item_factory(granted_spell_id=spell.id)
     candidate_b = await item_factory(granted_spell_id=spell.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_a.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_b.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_a.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_b.id)
     run = await run_factory(state=RunState.CAMP, current_floor=1)
     camp = await camp_factory(
         run_id=run.id,
-        spirit_id=spirit.id,
+        egregore_id=egregore.id,
         candidate_a_item_id=candidate_a.id,
         candidate_b_item_id=candidate_b.id,
         floor=1,
@@ -60,11 +60,11 @@ async def _setup_camp(
 
 
 async def test_end_camp_is_idempotent_when_already_ended(
-    db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory,
+    db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory,
     camp_factory,
 ):
     run, camp = await _setup_camp(
-        spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory, camp_factory
+        spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory, camp_factory
     )
     camp.ended_at = NOW
 
@@ -83,11 +83,11 @@ async def test_end_camp_is_idempotent_when_already_ended(
 
 
 async def test_end_camp_retires_when_no_participants(
-    db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory,
+    db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory,
     camp_factory,
 ):
     run, camp = await _setup_camp(
-        spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory, camp_factory
+        spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory, camp_factory
     )
 
     await end_camp(db_session, run, camp, now=NOW, reason="empty", random_source=random.Random(1))
@@ -98,11 +98,11 @@ async def test_end_camp_retires_when_no_participants(
 
 
 async def test_end_camp_starts_next_floor_when_participants_remain(
-    db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory,
+    db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory,
     camp_factory, adventurer_factory, enemy_factory, enemy_group_factory,
 ):
     run, camp = await _setup_camp(
-        spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory, camp_factory
+        spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory, camp_factory
     )
     enemy = await enemy_factory()
     group = await enemy_group_factory(
@@ -121,11 +121,11 @@ async def test_end_camp_starts_next_floor_when_participants_remain(
 
 
 async def test_end_camp_records_camp_ended_event_with_reason_and_participant_count(
-    db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory,
+    db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory,
     camp_factory, adventurer_factory, enemy_factory, enemy_group_factory,
 ):
     run, camp = await _setup_camp(
-        spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory, camp_factory
+        spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory, camp_factory
     )
     enemy = await enemy_factory()
     group = await enemy_group_factory(
@@ -173,13 +173,13 @@ async def test_floor_generation_failure_does_not_leave_camp_ended_alone():
         session.add(blessing_item)
         await session.flush()
 
-        spirit = Spirit(
-            spirit_key=_unique("spirit"),
+        egregore = Egregore(
+            egregore_key=_unique("egregore"),
             display_name="s",
             representative_attribute="RR",
             blessing_item_id=blessing_item.id,
         )
-        session.add(spirit)
+        session.add(egregore)
         await session.flush()
 
         candidate_a = Item(
@@ -199,8 +199,8 @@ async def test_floor_generation_failure_does_not_leave_camp_ended_alone():
         )
         session.add_all([candidate_a, candidate_b, broken_item])
         await session.flush()
-        session.add(SpiritItemPoolEntry(spirit_id=spirit.id, item_id=candidate_a.id))
-        session.add(SpiritItemPoolEntry(spirit_id=spirit.id, item_id=candidate_b.id))
+        session.add(EgregoreItemPoolEntry(egregore_id=egregore.id, item_id=candidate_a.id))
+        session.add(EgregoreItemPoolEntry(egregore_id=egregore.id, item_id=candidate_b.id))
 
         enemy = Enemy(
             enemy_key=_unique("enemy"),
@@ -242,7 +242,7 @@ async def test_floor_generation_failure_does_not_leave_camp_ended_alone():
         camp = RunCamp(
             run_id=run.id,
             floor=1,
-            spirit_id=spirit.id,
+            egregore_id=egregore.id,
             candidate_a_item_id=candidate_a.id,
             candidate_b_item_id=candidate_b.id,
             started_at=NOW,

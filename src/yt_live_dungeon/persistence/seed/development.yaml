@@ -118,17 +118,17 @@ items:
     break_effects: []
     is_active: true
 
-spirits:
-  - spirit_key: spirit_flame
-    display_name: 炎の精霊(仮)
+egregores:
+  - egregore_key: egregore_flame
+    display_name: 炎のエグレゴア(仮)
     representative_attribute: RR
     blessing_item_key: item_blessing_flame
     is_active: true
     pool_item_keys:
       - item_pool_flame_1
       - item_pool_flame_2
-  - spirit_key: spirit_tide
-    display_name: 潮の精霊(仮)
+  - egregore_key: egregore_tide
+    display_name: 潮のエグレゴア(仮)
     representative_attribute: BB
     blessing_item_key: item_blessing_tide
     is_active: true

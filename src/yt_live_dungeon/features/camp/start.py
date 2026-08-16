@@ -8,9 +8,9 @@ from yt_live_dungeon.domain.random_source import RandomSource
 from yt_live_dungeon.persistence.models import RunCamp, RunCampMember, RunState
 from yt_live_dungeon.persistence.queries.adventurer import list_active_participants
 from yt_live_dungeon.persistence.queries.camp import get_camp_by_run_and_floor
+from yt_live_dungeon.persistence.queries.egregore import list_active_pool_item_ids
 from yt_live_dungeon.persistence.queries.event import append_event
 from yt_live_dungeon.persistence.queries.run import get_run_for_update
-from yt_live_dungeon.persistence.queries.spirit import list_active_pool_item_ids
 
 CAMP_DURATION = timedelta(minutes=5)
 
@@ -18,7 +18,7 @@ CAMP_DURATION = timedelta(minutes=5)
 async def start_camp(
     session: AsyncSession,
     run_id: uuid.UUID,
-    spirit_id: int,
+    egregore_id: int,
     *,
     now: datetime,
     random_source: RandomSource,
@@ -35,10 +35,10 @@ async def start_camp(
     if existing is not None:
         return existing
 
-    pool_item_ids = await list_active_pool_item_ids(session, spirit_id)
+    pool_item_ids = await list_active_pool_item_ids(session, egregore_id)
     if len(pool_item_ids) < 2:
         raise CampConfigurationError(
-            f"spirit {spirit_id} has fewer than 2 active pool items"
+            f"egregore {egregore_id} has fewer than 2 active pool items"
         )
 
     candidate_a_item_id, candidate_b_item_id = random_source.sample(pool_item_ids, 2)
@@ -46,7 +46,7 @@ async def start_camp(
     camp = RunCamp(
         run_id=run_id,
         floor=run.current_floor,
-        spirit_id=spirit_id,
+        egregore_id=egregore_id,
         candidate_a_item_id=candidate_a_item_id,
         candidate_b_item_id=candidate_b_item_id,
         started_at=now,
@@ -77,7 +77,7 @@ async def start_camp(
         "camp_started",
         {
             "floor": run.current_floor,
-            "spirit_id": spirit_id,
+            "egregore_id": egregore_id,
             "candidate_a_item_id": candidate_a_item_id,
             "candidate_b_item_id": candidate_b_item_id,
             "deadline_at": camp.deadline_at.isoformat(),

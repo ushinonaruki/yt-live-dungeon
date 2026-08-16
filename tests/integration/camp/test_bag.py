@@ -45,23 +45,23 @@ async def test_bag_rejected_when_viewer_not_joined(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
 ):
     spell = await spell_factory()
     blessing_item = await item_factory(granted_spell_id=spell.id)
-    spirit = await spirit_factory(blessing_item_id=blessing_item.id)
+    egregore = await egregore_factory(blessing_item_id=blessing_item.id)
     candidate_a = await item_factory(granted_spell_id=spell.id)
     candidate_b = await item_factory(granted_spell_id=spell.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_a.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_b.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_a.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_b.id)
 
     run = await run_factory(state=RunState.CAMP, current_floor=1)
     await camp_factory(
         run_id=run.id,
-        spirit_id=spirit.id,
+        egregore_id=egregore.id,
         candidate_a_item_id=candidate_a.id,
         candidate_b_item_id=candidate_b.id,
         floor=1,
@@ -79,7 +79,7 @@ async def test_bag_returns_slot_ordered_items_with_final_modifiers_and_spell(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -90,11 +90,11 @@ async def test_bag_returns_slot_ordered_items_with_final_modifiers_and_spell(
     spell_a = await spell_factory(command="spell_a")
     spell_b = await spell_factory(command="spell_b")
     blessing_item = await item_factory(granted_spell_id=spell_a.id)
-    spirit = await spirit_factory(blessing_item_id=blessing_item.id)
+    egregore = await egregore_factory(blessing_item_id=blessing_item.id)
     candidate_a = await item_factory(granted_spell_id=spell_a.id)
     candidate_b = await item_factory(granted_spell_id=spell_a.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_a.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_b.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_a.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_b.id)
 
     second_item = await item_factory(
         granted_spell_id=spell_b.id,
@@ -107,7 +107,7 @@ async def test_bag_returns_slot_ordered_items_with_final_modifiers_and_spell(
     adventurer = await adventurer_factory(run_id=run.id)
     camp = await camp_factory(
         run_id=run.id,
-        spirit_id=spirit.id,
+        egregore_id=egregore.id,
         candidate_a_item_id=candidate_a.id,
         candidate_b_item_id=candidate_b.id,
         floor=1,

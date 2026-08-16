@@ -12,14 +12,14 @@ from yt_live_dungeon.features.floor.group_validation import (
 )
 from yt_live_dungeon.persistence.database import async_session_factory
 from yt_live_dungeon.persistence.models import (
+    Egregore,
+    EgregoreItemPoolEntry,
     Enemy,
     EnemyGroup,
     EnemyGroupMember,
     EnemySpell,
     Item,
     Spell,
-    Spirit,
-    SpiritItemPoolEntry,
 )
 
 SEED_DIR = Path(__file__).parent
@@ -71,37 +71,37 @@ async def _upsert_items(
     return ids
 
 
-async def _upsert_spirits(
-    session: AsyncSession, spirits: list[dict], item_ids: dict[str, int]
+async def _upsert_egregores(
+    session: AsyncSession, egregores: list[dict], item_ids: dict[str, int]
 ) -> None:
-    for spirit in spirits:
+    for egregore in egregores:
         payload = {
-            "spirit_key": spirit["spirit_key"],
-            "display_name": spirit["display_name"],
-            "representative_attribute": spirit["representative_attribute"],
-            "blessing_item_id": item_ids[spirit["blessing_item_key"]],
-            "is_active": spirit.get("is_active", True),
+            "egregore_key": egregore["egregore_key"],
+            "display_name": egregore["display_name"],
+            "representative_attribute": egregore["representative_attribute"],
+            "blessing_item_id": item_ids[egregore["blessing_item_key"]],
+            "is_active": egregore.get("is_active", True),
         }
         stmt = (
-            pg_insert(Spirit)
+            pg_insert(Egregore)
             .values(**payload)
             .on_conflict_do_update(
-                index_elements=[Spirit.spirit_key],
-                set_={key: value for key, value in payload.items() if key != "spirit_key"},
+                index_elements=[Egregore.egregore_key],
+                set_={key: value for key, value in payload.items() if key != "egregore_key"},
             )
-            .returning(Spirit.id)
+            .returning(Egregore.id)
         )
         result = await session.execute(stmt)
-        spirit_id = result.scalar_one()
+        egregore_id = result.scalar_one()
 
-        for pool_item_key in spirit.get("pool_item_keys", []):
+        for pool_item_key in egregore.get("pool_item_keys", []):
             entry_stmt = (
-                pg_insert(SpiritItemPoolEntry)
-                .values(spirit_id=spirit_id, item_id=item_ids[pool_item_key])
+                pg_insert(EgregoreItemPoolEntry)
+                .values(egregore_id=egregore_id, item_id=item_ids[pool_item_key])
                 .on_conflict_do_nothing(
                     index_elements=[
-                        SpiritItemPoolEntry.spirit_id,
-                        SpiritItemPoolEntry.item_id,
+                        EgregoreItemPoolEntry.egregore_id,
+                        EgregoreItemPoolEntry.item_id,
                     ]
                 )
             )
@@ -205,7 +205,7 @@ async def _upsert_enemy_groups(
 async def load_seed(session: AsyncSession, data: dict) -> None:
     spell_ids = await _upsert_spells(session, data.get("spells", []))
     item_ids = await _upsert_items(session, data.get("items", []), spell_ids)
-    await _upsert_spirits(session, data.get("spirits", []), item_ids)
+    await _upsert_egregores(session, data.get("egregores", []), item_ids)
     enemy_ids = await _upsert_enemies(session, data.get("enemies", []), spell_ids)
     await _upsert_enemy_groups(session, data.get("enemy_groups", []), enemy_ids)
 

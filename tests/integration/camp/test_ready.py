@@ -36,7 +36,7 @@ def _context(session, run_id, viewer_id: str) -> CommandContext:
 async def _setup_camp_with_members(
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -50,11 +50,11 @@ async def _setup_camp_with_members(
 ):
     spell = await spell_factory()
     blessing_item = await item_factory(granted_spell_id=spell.id)
-    spirit = await spirit_factory(blessing_item_id=blessing_item.id)
+    egregore = await egregore_factory(blessing_item_id=blessing_item.id)
     candidate_a = await item_factory(granted_spell_id=spell.id)
     candidate_b = await item_factory(granted_spell_id=spell.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_a.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_b.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_a.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_b.id)
 
     enemy = await enemy_factory()
     group = await enemy_group_factory(
@@ -64,7 +64,7 @@ async def _setup_camp_with_members(
     run = await run_factory(state=RunState.CAMP, current_floor=1, next_group_id=group.id)
     camp = await camp_factory(
         run_id=run.id,
-        spirit_id=spirit.id,
+        egregore_id=egregore.id,
         candidate_a_item_id=candidate_a.id,
         candidate_b_item_id=candidate_b.id,
         floor=1,
@@ -88,7 +88,7 @@ async def test_ready_succeeds_without_selecting_an_action(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -100,7 +100,7 @@ async def test_ready_succeeds_without_selecting_an_action(
     run, camp, [a, b] = await _setup_camp_with_members(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -119,7 +119,7 @@ async def test_ready_all_participants_ready_ends_camp_immediately(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -131,7 +131,7 @@ async def test_ready_all_participants_ready_ends_camp_immediately(
     run, camp, [a, b] = await _setup_camp_with_members(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -162,7 +162,7 @@ async def test_ready_does_not_end_camp_while_others_are_unready(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -174,7 +174,7 @@ async def test_ready_does_not_end_camp_while_others_are_unready(
     run, camp, [a, b] = await _setup_camp_with_members(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -195,7 +195,7 @@ async def test_second_ready_call_is_rejected_without_mutation(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -207,7 +207,7 @@ async def test_second_ready_call_is_rejected_without_mutation(
     run, camp, [a, b] = await _setup_camp_with_members(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -249,22 +249,22 @@ async def test_ready_rejected_when_not_joined(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
 ):
     spell = await spell_factory()
     blessing_item = await item_factory(granted_spell_id=spell.id)
-    spirit = await spirit_factory(blessing_item_id=blessing_item.id)
+    egregore = await egregore_factory(blessing_item_id=blessing_item.id)
     candidate_a = await item_factory(granted_spell_id=spell.id)
     candidate_b = await item_factory(granted_spell_id=spell.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_a.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_b.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_a.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_b.id)
     run = await run_factory(state=RunState.CAMP, current_floor=1)
     await camp_factory(
         run_id=run.id,
-        spirit_id=spirit.id,
+        egregore_id=egregore.id,
         candidate_a_item_id=candidate_a.id,
         candidate_b_item_id=candidate_b.id,
         floor=1,
@@ -282,7 +282,7 @@ async def test_adventurer_ready_event_body_has_manual_reason(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -294,7 +294,7 @@ async def test_adventurer_ready_event_body_has_manual_reason(
     run, camp, [a, b] = await _setup_camp_with_members(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,

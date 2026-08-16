@@ -20,6 +20,8 @@ from yt_live_dungeon.features.commands.submit import submit_command
 from yt_live_dungeon.features.commands.types import CommandInput
 from yt_live_dungeon.persistence.database import async_session_factory
 from yt_live_dungeon.persistence.models import (
+    Egregore,
+    EgregoreItemPoolEntry,
     Item,
     Run,
     RunAdventurer,
@@ -29,8 +31,6 @@ from yt_live_dungeon.persistence.models import (
     RunEvent,
     RunState,
     Spell,
-    Spirit,
-    SpiritItemPoolEntry,
 )
 from yt_live_dungeon.persistence.queries.camp import get_camp_member
 
@@ -65,36 +65,38 @@ def _context(session, run_id, viewer_id: str, *, random_source=None) -> CommandC
     )
 
 
-async def _isolate_spirit_draw(db_session, spirit_id) -> None:
-    """@login draws uniformly from *every* active spirit visible in this
+async def _isolate_egregore_draw(db_session, egregore_id) -> None:
+    """@login draws uniformly from *every* active egregore visible in this
     transaction. The shared test DB is never reset between tests, so
-    other tests' committed spirits (real-commit concurrency scenarios,
+    other tests' committed egregores (real-commit concurrency scenarios,
     seed data) would otherwise also be in that population, making a
     seeded RandomSource's draw depend on what ran earlier instead of
-    being deterministic. Deactivating every other spirit only inside
+    being deterministic. Deactivating every other egregore only inside
     this test's own (rolled-back) transaction fixes that without
     touching real committed state."""
-    await db_session.execute(update(Spirit).where(Spirit.id != spirit_id).values(is_active=False))
+    await db_session.execute(
+        update(Egregore).where(Egregore.id != egregore_id).values(is_active=False)
+    )
 
 
 async def _setup_open_camp(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
 ):
-    """A CAMP whose spirit has one active pool item (for @login's own
+    """A CAMP whose egregore has one active pool item (for @login's own
     draw) plus two unrelated candidate items (for the RunCamp row's own
     candidate_a/candidate_b, which @login never touches)."""
     spell = await spell_factory()
     blessing_item = await item_factory(granted_spell_id=spell.id)
-    spirit = await spirit_factory(blessing_item_id=blessing_item.id)
+    egregore = await egregore_factory(blessing_item_id=blessing_item.id)
     pool_item = await item_factory(granted_spell_id=spell.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=pool_item.id)
-    await _isolate_spirit_draw(db_session, spirit.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=pool_item.id)
+    await _isolate_egregore_draw(db_session, egregore.id)
 
     candidate_a = await item_factory(granted_spell_id=spell.id)
     candidate_b = await item_factory(granted_spell_id=spell.id)
@@ -102,13 +104,13 @@ async def _setup_open_camp(
     run = await run_factory(state=RunState.CAMP, current_floor=1)
     camp = await camp_factory(
         run_id=run.id,
-        spirit_id=spirit.id,
+        egregore_id=egregore.id,
         candidate_a_item_id=candidate_a.id,
         candidate_b_item_id=candidate_b.id,
         floor=1,
     )
 
-    return spell, blessing_item, spirit, pool_item, run, camp
+    return spell, blessing_item, egregore, pool_item, run, camp
 
 
 async def test_login_rejected_when_not_in_camp(db_session, run_factory):
@@ -124,13 +126,13 @@ async def test_login_creates_new_adventurer_with_granted_items(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
 ):
-    _spell, blessing_item, spirit, pool_item, run, _camp = await _setup_open_camp(
-        db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory,
+    _spell, blessing_item, egregore, pool_item, run, _camp = await _setup_open_camp(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory,
         camp_factory,
     )
 
@@ -147,7 +149,7 @@ async def test_login_creates_new_adventurer_with_granted_items(
             )
         )
     ).scalar_one()
-    assert adventurer.spirit_id == spirit.id
+    assert adventurer.egregore_id == egregore.id
     assert adventurer.is_alive is True
     assert adventurer.is_participating is True
 
@@ -171,13 +173,13 @@ async def test_login_new_adventurer_can_select_action_is_false(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
 ):
-    _spell, _blessing, _spirit, _pool_item, run, camp = await _setup_open_camp(
-        db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory,
+    _spell, _blessing, _egregore, _pool_item, run, camp = await _setup_open_camp(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory,
         camp_factory,
     )
 
@@ -201,7 +203,7 @@ async def test_login_new_adventurer_hp_reflects_item_bonuses_but_max_mp_stays_fi
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
@@ -213,16 +215,16 @@ async def test_login_new_adventurer_hp_reflects_item_bonuses_but_max_mp_stays_fi
     blessing_item = await item_factory(
         granted_spell_id=spell.id, base_stat_modifiers={"max_hp": 50}
     )
-    spirit = await spirit_factory(blessing_item_id=blessing_item.id)
+    egregore = await egregore_factory(blessing_item_id=blessing_item.id)
     pool_item = await item_factory(granted_spell_id=spell.id, base_stat_modifiers={"max_hp": 20})
-    await pool_entry_factory(spirit_id=spirit.id, item_id=pool_item.id)
-    await _isolate_spirit_draw(db_session, spirit.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=pool_item.id)
+    await _isolate_egregore_draw(db_session, egregore.id)
     candidate_a = await item_factory(granted_spell_id=spell.id)
     candidate_b = await item_factory(granted_spell_id=spell.id)
     run = await run_factory(state=RunState.CAMP, current_floor=1)
     await camp_factory(
         run_id=run.id,
-        spirit_id=spirit.id,
+        egregore_id=egregore.id,
         candidate_a_item_id=candidate_a.id,
         candidate_b_item_id=candidate_b.id,
         floor=1,
@@ -246,15 +248,15 @@ async def test_login_succeeds_from_seven_participants(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
     adventurer_factory,
     camp_member_factory,
 ):
-    _spell, _blessing, _spirit, _pool_item, run, camp = await _setup_open_camp(
-        db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory,
+    _spell, _blessing, _egregore, _pool_item, run, camp = await _setup_open_camp(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory,
         camp_factory,
     )
     for _ in range(7):
@@ -270,15 +272,15 @@ async def test_login_rejected_when_eight_participants(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
     adventurer_factory,
     camp_member_factory,
 ):
-    _spell, _blessing, _spirit, _pool_item, run, camp = await _setup_open_camp(
-        db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory,
+    _spell, _blessing, _egregore, _pool_item, run, camp = await _setup_open_camp(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory,
         camp_factory,
     )
     for _ in range(MAX_PARTICIPANTS):
@@ -295,15 +297,15 @@ async def test_login_rejected_full_camp_does_not_consume_random_source(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
     adventurer_factory,
     camp_member_factory,
 ):
-    _spell, _blessing, _spirit, _pool_item, run, camp = await _setup_open_camp(
-        db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory,
+    _spell, _blessing, _egregore, _pool_item, run, camp = await _setup_open_camp(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory,
         camp_factory,
     )
     for _ in range(MAX_PARTICIPANTS):
@@ -323,15 +325,15 @@ async def test_login_rejected_full_camp_creates_no_adventurer_row(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
     adventurer_factory,
     camp_member_factory,
 ):
-    _spell, _blessing, _spirit, _pool_item, run, camp = await _setup_open_camp(
-        db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory,
+    _spell, _blessing, _egregore, _pool_item, run, camp = await _setup_open_camp(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory,
         camp_factory,
     )
     for _ in range(MAX_PARTICIPANTS):
@@ -356,14 +358,14 @@ async def test_login_rejected_for_dead_adventurer_in_this_run(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
     adventurer_factory,
 ):
-    _spell, _blessing, _spirit, _pool_item, run, _camp = await _setup_open_camp(
-        db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory,
+    _spell, _blessing, _egregore, _pool_item, run, _camp = await _setup_open_camp(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory,
         camp_factory,
     )
     await adventurer_factory(
@@ -383,15 +385,15 @@ async def test_login_rejected_for_logged_out_adventurer_in_this_run(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
     adventurer_factory,
     camp_member_factory,
 ):
-    _spell, _blessing, _spirit, _pool_item, run, camp = await _setup_open_camp(
-        db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory,
+    _spell, _blessing, _egregore, _pool_item, run, camp = await _setup_open_camp(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory,
         camp_factory,
     )
     adventurer = await adventurer_factory(
@@ -411,15 +413,15 @@ async def test_login_rejected_for_logged_out_adventurer_does_not_consume_random_
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
     adventurer_factory,
     camp_member_factory,
 ):
-    _spell, _blessing, _spirit, _pool_item, run, camp = await _setup_open_camp(
-        db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory,
+    _spell, _blessing, _egregore, _pool_item, run, camp = await _setup_open_camp(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory,
         camp_factory,
     )
     adventurer = await adventurer_factory(
@@ -442,7 +444,7 @@ async def test_login_rejected_for_logged_out_adventurer_leaves_adventurer_state_
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
@@ -450,14 +452,14 @@ async def test_login_rejected_for_logged_out_adventurer_leaves_adventurer_state_
     camp_member_factory,
     inventory_item_factory,
 ):
-    spell, blessing_item, spirit, pool_item, run, camp = await _setup_open_camp(
-        db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory,
+    spell, blessing_item, egregore, pool_item, run, camp = await _setup_open_camp(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory,
         camp_factory,
     )
     adventurer = await adventurer_factory(
         run_id=run.id,
         youtube_id="left-viewer",
-        spirit_id=spirit.id,
+        egregore_id=egregore.id,
         is_participating=False,
         hp=321,
         mp=45,
@@ -471,7 +473,7 @@ async def test_login_rejected_for_logged_out_adventurer_leaves_adventurer_state_
 
     await db_session.refresh(adventurer)
     assert adventurer.is_participating is False
-    assert adventurer.spirit_id == spirit.id
+    assert adventurer.egregore_id == egregore.id
     assert adventurer.hp == 321
     assert adventurer.mp == 45
 
@@ -494,15 +496,15 @@ async def test_login_rejected_for_logged_out_adventurer_adds_no_rows_or_event(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
     adventurer_factory,
     camp_member_factory,
 ):
-    _spell, _blessing, _spirit, _pool_item, run, camp = await _setup_open_camp(
-        db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory,
+    _spell, _blessing, _egregore, _pool_item, run, camp = await _setup_open_camp(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory,
         camp_factory,
     )
     adventurer = await adventurer_factory(
@@ -567,15 +569,15 @@ async def test_login_by_a_different_new_viewer_can_use_the_slot_a_logout_freed(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
     adventurer_factory,
     camp_member_factory,
 ):
-    _spell, _blessing, _spirit, _pool_item, run, camp = await _setup_open_camp(
-        db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory,
+    _spell, _blessing, _egregore, _pool_item, run, camp = await _setup_open_camp(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory,
         camp_factory,
     )
     for _ in range(MAX_PARTICIPANTS - 1):
@@ -599,15 +601,15 @@ async def test_login_rejected_when_already_joined(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
     adventurer_factory,
     camp_member_factory,
 ):
-    _spell, _blessing, _spirit, _pool_item, run, camp = await _setup_open_camp(
-        db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory,
+    _spell, _blessing, _egregore, _pool_item, run, camp = await _setup_open_camp(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory,
         camp_factory,
     )
     adventurer = await adventurer_factory(run_id=run.id, youtube_id="already-in")
@@ -623,13 +625,13 @@ async def test_adventurer_login_event_body_for_new_adventurer(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
 ):
-    _spell, blessing_item, spirit, pool_item, run, _camp = await _setup_open_camp(
-        db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory,
+    _spell, blessing_item, egregore, pool_item, run, _camp = await _setup_open_camp(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory,
         camp_factory,
     )
 
@@ -652,24 +654,24 @@ async def test_adventurer_login_event_body_for_new_adventurer(
 
     assert event.body == {
         "adventurer": str(adventurer.id),
-        "spirit": spirit.id,
+        "egregore": egregore.id,
         "blessing_item": blessing_item.id,
         "pool_item": pool_item.id,
     }
 
 
-async def test_onboarding_raises_when_no_active_spirits(
-    db_session, run_factory, camp_factory, spell_factory, item_factory, spirit_factory,
+async def test_onboarding_raises_when_no_active_egregores(
+    db_session, run_factory, camp_factory, spell_factory, item_factory, egregore_factory,
     pool_entry_factory,
 ):
-    # a valid open camp requires a spirit, but that spirit need not be the
-    # *only* spirit in master data, and it need not be active for a new
+    # a valid open camp requires a egregore, but that egregore need not be the
+    # *only* egregore in master data, and it need not be active for a new
     # login to be attempted against it
-    _spell, _blessing, spirit, _pool_item, run, _camp = await _setup_open_camp(
-        db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory,
+    _spell, _blessing, egregore, _pool_item, run, _camp = await _setup_open_camp(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory,
         camp_factory,
     )
-    spirit.is_active = False
+    egregore.is_active = False
     await db_session.flush()
 
     with pytest.raises(LoginConfigurationError):
@@ -704,13 +706,13 @@ async def _commit_open_camp_scenario(participant_count: int) -> dict:
         session.add(blessing_item)
         await session.flush()
 
-        spirit = Spirit(
-            spirit_key=_unique("spirit"),
+        egregore = Egregore(
+            egregore_key=_unique("egregore"),
             display_name="s",
             representative_attribute="RR",
             blessing_item_id=blessing_item.id,
         )
-        session.add(spirit)
+        session.add(egregore)
         await session.flush()
 
         pool_item_a = Item(
@@ -727,11 +729,11 @@ async def _commit_open_camp_scenario(participant_count: int) -> dict:
         )
         session.add_all([pool_item_a, pool_item_b, candidate_a, candidate_b])
         await session.flush()
-        # this spirit is committed for real (unlike the rollback-scoped
+        # this egregore is committed for real (unlike the rollback-scoped
         # fixtures elsewhere in this file), so it must satisfy the same
         # "at least 2 active pool items" invariant seed data does
-        session.add(SpiritItemPoolEntry(spirit_id=spirit.id, item_id=pool_item_a.id))
-        session.add(SpiritItemPoolEntry(spirit_id=spirit.id, item_id=pool_item_b.id))
+        session.add(EgregoreItemPoolEntry(egregore_id=egregore.id, item_id=pool_item_a.id))
+        session.add(EgregoreItemPoolEntry(egregore_id=egregore.id, item_id=pool_item_b.id))
 
         run = Run(state=RunState.CAMP, current_floor=1)
         session.add(run)
@@ -740,7 +742,7 @@ async def _commit_open_camp_scenario(participant_count: int) -> dict:
         camp = RunCamp(
             run_id=run.id,
             floor=1,
-            spirit_id=spirit.id,
+            egregore_id=egregore.id,
             candidate_a_item_id=candidate_a.id,
             candidate_b_item_id=candidate_b.id,
             started_at=NOW,

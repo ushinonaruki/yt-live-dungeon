@@ -12,20 +12,20 @@ def camp_window() -> tuple[datetime, datetime]:
     return started_at, deadline_at
 
 
-async def _setup(spell_factory, item_factory, spirit_factory, run_factory):
+async def _setup(spell_factory, item_factory, egregore_factory, run_factory):
     spell = await spell_factory()
     item_a = await item_factory(granted_spell_id=spell.id, item_key="item_a")
     item_b = await item_factory(granted_spell_id=spell.id, item_key="item_b")
-    spirit = await spirit_factory(blessing_item_id=item_a.id)
+    egregore = await egregore_factory(blessing_item_id=item_a.id)
     run = await run_factory()
-    return run, spirit, item_a, item_b
+    return run, egregore, item_a, item_b
 
 
 async def test_rejects_equal_candidates(
-    db_session, spell_factory, item_factory, spirit_factory, run_factory
+    db_session, spell_factory, item_factory, egregore_factory, run_factory
 ):
-    run, spirit, item_a, _ = await _setup(
-        spell_factory, item_factory, spirit_factory, run_factory
+    run, egregore, item_a, _ = await _setup(
+        spell_factory, item_factory, egregore_factory, run_factory
     )
     started_at, deadline_at = camp_window()
 
@@ -34,7 +34,7 @@ async def test_rejects_equal_candidates(
             RunCamp(
                 run_id=run.id,
                 floor=1,
-                spirit_id=spirit.id,
+                egregore_id=egregore.id,
                 candidate_a_item_id=item_a.id,
                 candidate_b_item_id=item_a.id,
                 started_at=started_at,
@@ -45,10 +45,10 @@ async def test_rejects_equal_candidates(
 
 
 async def test_rejects_second_camp_for_same_run_and_floor(
-    db_session, spell_factory, item_factory, spirit_factory, run_factory
+    db_session, spell_factory, item_factory, egregore_factory, run_factory
 ):
-    run, spirit, item_a, item_b = await _setup(
-        spell_factory, item_factory, spirit_factory, run_factory
+    run, egregore, item_a, item_b = await _setup(
+        spell_factory, item_factory, egregore_factory, run_factory
     )
     started_at, deadline_at = camp_window()
 
@@ -56,7 +56,7 @@ async def test_rejects_second_camp_for_same_run_and_floor(
         RunCamp(
             run_id=run.id,
             floor=1,
-            spirit_id=spirit.id,
+            egregore_id=egregore.id,
             candidate_a_item_id=item_a.id,
             candidate_b_item_id=item_b.id,
             started_at=started_at,
@@ -70,7 +70,7 @@ async def test_rejects_second_camp_for_same_run_and_floor(
             RunCamp(
                 run_id=run.id,
                 floor=1,
-                spirit_id=spirit.id,
+                egregore_id=egregore.id,
                 candidate_a_item_id=item_a.id,
                 candidate_b_item_id=item_b.id,
                 started_at=started_at,

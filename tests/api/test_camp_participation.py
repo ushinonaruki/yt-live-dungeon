@@ -3,6 +3,8 @@ from datetime import UTC, datetime, timedelta
 
 from yt_live_dungeon.persistence.database import async_session_factory
 from yt_live_dungeon.persistence.models import (
+    Egregore,
+    EgregoreItemPoolEntry,
     Enemy,
     EnemyGroup,
     EnemyGroupMember,
@@ -13,8 +15,6 @@ from yt_live_dungeon.persistence.models import (
     RunCampMember,
     RunState,
     Spell,
-    Spirit,
-    SpiritItemPoolEntry,
 )
 
 
@@ -42,13 +42,13 @@ async def _create_open_camp_scenario():
         session.add(blessing_item)
         await session.flush()
 
-        spirit = Spirit(
-            spirit_key=_unique("spirit"),
-            display_name="Test Spirit",
+        egregore = Egregore(
+            egregore_key=_unique("egregore"),
+            display_name="Test Egregore",
             representative_attribute="RR",
             blessing_item_id=blessing_item.id,
         )
-        session.add(spirit)
+        session.add(egregore)
         await session.flush()
 
         pool_item_a = Item(
@@ -69,10 +69,10 @@ async def _create_open_camp_scenario():
         )
         session.add_all([pool_item_a, pool_item_b, candidate_a, candidate_b])
         await session.flush()
-        # this spirit is committed for real, so it must satisfy the same
+        # this egregore is committed for real, so it must satisfy the same
         # "at least 2 active pool items" invariant seed data does
-        session.add(SpiritItemPoolEntry(spirit_id=spirit.id, item_id=pool_item_a.id))
-        session.add(SpiritItemPoolEntry(spirit_id=spirit.id, item_id=pool_item_b.id))
+        session.add(EgregoreItemPoolEntry(egregore_id=egregore.id, item_id=pool_item_a.id))
+        session.add(EgregoreItemPoolEntry(egregore_id=egregore.id, item_id=pool_item_b.id))
 
         enemy = Enemy(
             enemy_key=_unique("enemy"),
@@ -106,7 +106,7 @@ async def _create_open_camp_scenario():
         camp = RunCamp(
             run_id=run.id,
             floor=1,
-            spirit_id=spirit.id,
+            egregore_id=egregore.id,
             candidate_a_item_id=candidate_a.id,
             candidate_b_item_id=candidate_b.id,
             started_at=started_at,

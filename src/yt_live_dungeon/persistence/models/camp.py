@@ -36,8 +36,8 @@ class RunCamp(Base):
         UUID(as_uuid=True), ForeignKey("runtime.runs.id"), nullable=False, index=True
     )
     floor: Mapped[int] = mapped_column(Integer)
-    spirit_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("master.spirits.id"), nullable=False
+    egregore_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("master.egregores.id"), nullable=False
     )
     candidate_a_item_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("master.items.id"), nullable=False

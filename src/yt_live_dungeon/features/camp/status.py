@@ -4,8 +4,8 @@ from yt_live_dungeon.features.commands.context import CommandContext
 from yt_live_dungeon.features.commands.dispatch import CommandOutcome
 from yt_live_dungeon.features.commands.parse import Status
 from yt_live_dungeon.persistence.queries.camp import get_camp_member
+from yt_live_dungeon.persistence.queries.egregore import get_egregore
 from yt_live_dungeon.persistence.queries.inventory import list_owned_rows, to_inventory_entries
-from yt_live_dungeon.persistence.queries.spirit import get_spirit
 
 
 async def handle_status(command: Status, context: CommandContext) -> CommandOutcome:
@@ -28,7 +28,9 @@ async def handle_status(command: Status, context: CommandContext) -> CommandOutc
     member = await get_camp_member(session, camp.id, adventurer.id)
     is_ready = member is not None and member.ready_at is not None
 
-    spirit = await get_spirit(session, adventurer.spirit_id) if adventurer.spirit_id else None
+    egregore = (
+        await get_egregore(session, adventurer.egregore_id) if adventurer.egregore_id else None
+    )
 
     result = {
         "run_adventurer_id": str(adventurer.id),
@@ -37,8 +39,10 @@ async def handle_status(command: Status, context: CommandContext) -> CommandOutc
         "mp": adventurer.mp,
         "max_mp": stats.max_mp,
         "attributes": stats.attributes,
-        "spirit": (
-            {"id": spirit.id, "display_name": spirit.display_name} if spirit is not None else None
+        "egregore": (
+            {"id": egregore.id, "display_name": egregore.display_name}
+            if egregore is not None
+            else None
         ),
         "is_ready": is_ready,
     }

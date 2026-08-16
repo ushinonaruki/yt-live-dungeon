@@ -19,7 +19,7 @@ def _unique(label: str) -> str:
 async def _setup_camp_with_members(
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -33,11 +33,11 @@ async def _setup_camp_with_members(
 ):
     spell = await spell_factory()
     blessing_item = await item_factory(granted_spell_id=spell.id)
-    spirit = await spirit_factory(blessing_item_id=blessing_item.id)
+    egregore = await egregore_factory(blessing_item_id=blessing_item.id)
     candidate_a = await item_factory(granted_spell_id=spell.id)
     candidate_b = await item_factory(granted_spell_id=spell.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_a.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_b.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_a.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_b.id)
 
     enemy = await enemy_factory()
     group = await enemy_group_factory(
@@ -47,7 +47,7 @@ async def _setup_camp_with_members(
     run = await run_factory(state=RunState.CAMP, current_floor=1, next_group_id=group.id)
     camp = await camp_factory(
         run_id=run.id,
-        spirit_id=spirit.id,
+        egregore_id=egregore.id,
         candidate_a_item_id=candidate_a.id,
         candidate_b_item_id=candidate_b.id,
         floor=1,
@@ -73,7 +73,7 @@ async def test_deadline_not_yet_reached_leaves_camp_open(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -85,7 +85,7 @@ async def test_deadline_not_yet_reached_leaves_camp_open(
     run, camp, _adventurers = await _setup_camp_with_members(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -110,7 +110,7 @@ async def test_deadline_reached_exactly_forces_ready_and_ends_camp(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -122,7 +122,7 @@ async def test_deadline_reached_exactly_forces_ready_and_ends_camp(
     run, camp, [a, b] = await _setup_camp_with_members(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -168,7 +168,7 @@ async def test_deadline_evaluation_does_not_force_ready_on_already_ready_members
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -180,7 +180,7 @@ async def test_deadline_evaluation_does_not_force_ready_on_already_ready_members
     run, camp, [a, _b] = await _setup_camp_with_members(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -212,7 +212,7 @@ async def test_deadline_evaluation_is_idempotent_once_camp_has_ended(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -224,7 +224,7 @@ async def test_deadline_evaluation_is_idempotent_once_camp_has_ended(
     run, camp, _adventurers = await _setup_camp_with_members(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,

@@ -3,14 +3,14 @@ from sqlalchemy import func, select
 
 from yt_live_dungeon.persistence.database import async_session_factory
 from yt_live_dungeon.persistence.models import (
+    Egregore,
+    EgregoreItemPoolEntry,
     Enemy,
     EnemyGroup,
     EnemyGroupMember,
     EnemySpell,
     Item,
     Spell,
-    Spirit,
-    SpiritItemPoolEntry,
 )
 from yt_live_dungeon.persistence.seed.load import SEED_DIR, load_seed
 
@@ -19,8 +19,8 @@ DEVELOPMENT_SEED = yaml.safe_load((SEED_DIR / "development.yaml").read_text(enco
 SEEDED_MODELS = {
     "spells": Spell,
     "items": Item,
-    "spirits": Spirit,
-    "spirit_item_pool_entries": SpiritItemPoolEntry,
+    "egregores": Egregore,
+    "egregore_item_pool_entries": EgregoreItemPoolEntry,
     "enemies": Enemy,
     "enemy_spells": EnemySpell,
     "enemy_groups": EnemyGroup,
@@ -52,23 +52,23 @@ async def test_seed_is_idempotent():
     assert counts_after == counts_before
 
 
-async def test_each_active_spirit_has_at_least_two_pool_items():
+async def test_each_active_egregore_has_at_least_two_pool_items():
     await _load_development_seed()
 
     async with async_session_factory() as session:
-        active_spirits = (
-            await session.execute(select(Spirit).where(Spirit.is_active.is_(True)))
+        active_egregores = (
+            await session.execute(select(Egregore).where(Egregore.is_active.is_(True)))
         ).scalars().all()
 
-        for spirit in active_spirits:
+        for egregore in active_egregores:
             pool_count = (
                 await session.execute(
                     select(func.count())
-                    .select_from(SpiritItemPoolEntry)
-                    .where(SpiritItemPoolEntry.spirit_id == spirit.id)
+                    .select_from(EgregoreItemPoolEntry)
+                    .where(EgregoreItemPoolEntry.egregore_id == egregore.id)
                 )
             ).scalar_one()
-            assert pool_count >= 2, f"{spirit.spirit_key} has fewer than 2 pool items"
+            assert pool_count >= 2, f"{egregore.egregore_key} has fewer than 2 pool items"
 
 
 def test_development_seed_items_carry_no_max_mp_modifier():
@@ -89,17 +89,17 @@ async def test_blessing_item_not_in_its_own_pool():
     await _load_development_seed()
 
     async with async_session_factory() as session:
-        spirits = (await session.execute(select(Spirit))).scalars().all()
+        egregores = (await session.execute(select(Egregore))).scalars().all()
 
-        for spirit in spirits:
+        for egregore in egregores:
             in_pool = (
                 await session.execute(
                     select(func.count())
-                    .select_from(SpiritItemPoolEntry)
+                    .select_from(EgregoreItemPoolEntry)
                     .where(
-                        SpiritItemPoolEntry.spirit_id == spirit.id,
-                        SpiritItemPoolEntry.item_id == spirit.blessing_item_id,
+                        EgregoreItemPoolEntry.egregore_id == egregore.id,
+                        EgregoreItemPoolEntry.item_id == egregore.blessing_item_id,
                     )
                 )
             ).scalar_one()
-            assert in_pool == 0, f"{spirit.spirit_key}'s blessing item leaked into its own pool"
+            assert in_pool == 0, f"{egregore.egregore_key}'s blessing item leaked into its own pool"

@@ -37,7 +37,7 @@ async def submit_command(
     concurrent or unrelated submissions can never see each other's
     handlers or context. `random_source` is likewise per-call, defaulting
     to a fresh `random.Random()` when omitted; tests pass a seeded one
-    for reproducible draws (e.g. @login's spirit/item selection).
+    for reproducible draws (e.g. @login's egregore/item selection).
     """
     existing = await find_by_source_and_message_id(
         session, command_input.source, command_input.source_message_id
