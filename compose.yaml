@@ -51,6 +51,6 @@ services:
       - redis_data:/data
 
 volumes:
+  pgadmin_data:
   postgres_data:
   redis_data:
-  pgadmin_data:
