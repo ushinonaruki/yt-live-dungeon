@@ -5,6 +5,8 @@ from sqlalchemy import func, select
 
 from yt_live_dungeon.persistence.database import async_session_factory
 from yt_live_dungeon.persistence.models import (
+    Egregore,
+    EgregoreItemPoolEntry,
     Enemy,
     EnemyGroup,
     EnemyGroupMember,
@@ -13,8 +15,6 @@ from yt_live_dungeon.persistence.models import (
     RunAdventurer,
     RunState,
     Spell,
-    Spirit,
-    SpiritItemPoolEntry,
 )
 
 
@@ -42,13 +42,13 @@ async def _create_waiting_scenario():
         session.add(blessing_item)
         await session.flush()
 
-        spirit = Spirit(
-            spirit_key=_unique("spirit"),
-            display_name="Test Spirit",
+        egregore = Egregore(
+            egregore_key=_unique("egregore"),
+            display_name="Test Egregore",
             representative_attribute="RR",
             blessing_item_id=blessing_item.id,
         )
-        session.add(spirit)
+        session.add(egregore)
         await session.flush()
 
         pool_item_a = Item(
@@ -61,8 +61,8 @@ async def _create_waiting_scenario():
         )
         session.add_all([pool_item_a, pool_item_b])
         await session.flush()
-        session.add(SpiritItemPoolEntry(spirit_id=spirit.id, item_id=pool_item_a.id))
-        session.add(SpiritItemPoolEntry(spirit_id=spirit.id, item_id=pool_item_b.id))
+        session.add(EgregoreItemPoolEntry(egregore_id=egregore.id, item_id=pool_item_a.id))
+        session.add(EgregoreItemPoolEntry(egregore_id=egregore.id, item_id=pool_item_b.id))
 
         enemy = Enemy(
             enemy_key=_unique("enemy"), display_name="Test Enemy", base_max_hp=100,

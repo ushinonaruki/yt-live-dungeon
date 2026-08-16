@@ -9,29 +9,29 @@ from yt_live_dungeon.persistence.models import RunCamp, RunEvent, RunState
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
 
 
-async def _setup_spirit(spell_factory, item_factory, spirit_factory, pool_entry_factory):
+async def _setup_egregore(spell_factory, item_factory, egregore_factory, pool_entry_factory):
     spell = await spell_factory()
     blessing_item = await item_factory(granted_spell_id=spell.id)
-    spirit = await spirit_factory(blessing_item_id=blessing_item.id)
+    egregore = await egregore_factory(blessing_item_id=blessing_item.id)
     pool_a = await item_factory(granted_spell_id=spell.id)
     pool_b = await item_factory(granted_spell_id=spell.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=pool_a.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=pool_b.id)
-    return spirit
+    await pool_entry_factory(egregore_id=egregore.id, item_id=pool_a.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=pool_b.id)
+    return egregore
 
 
 async def test_master_defeat_starts_camp_before_floor_100(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     enemy_factory,
     enemy_group_factory,
     run_factory,
     run_enemy_factory,
 ):
-    await _setup_spirit(spell_factory, item_factory, spirit_factory, pool_entry_factory)
+    await _setup_egregore(spell_factory, item_factory, egregore_factory, pool_entry_factory)
     enemy = await enemy_factory()
     group = await enemy_group_factory(
         members=[{"order_in_group": 1, "enemy_id": enemy.id, "role": "master"}]
@@ -57,14 +57,14 @@ async def test_surviving_minions_do_not_block_breakthrough(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     enemy_factory,
     enemy_group_factory,
     run_factory,
     run_enemy_factory,
 ):
-    await _setup_spirit(spell_factory, item_factory, spirit_factory, pool_entry_factory)
+    await _setup_egregore(spell_factory, item_factory, egregore_factory, pool_entry_factory)
     enemy = await enemy_factory()
     group = await enemy_group_factory(
         members=[
@@ -150,14 +150,14 @@ async def test_double_invocation_does_not_double_transition(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     enemy_factory,
     enemy_group_factory,
     run_factory,
     run_enemy_factory,
 ):
-    await _setup_spirit(spell_factory, item_factory, spirit_factory, pool_entry_factory)
+    await _setup_egregore(spell_factory, item_factory, egregore_factory, pool_entry_factory)
     enemy = await enemy_factory()
     group = await enemy_group_factory(
         members=[{"order_in_group": 1, "enemy_id": enemy.id, "role": "master"}]

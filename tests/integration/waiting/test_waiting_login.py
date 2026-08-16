@@ -14,7 +14,7 @@ from yt_live_dungeon.features.waiting.login import (
     PARTY_FULL,
     handle_login,
 )
-from yt_live_dungeon.persistence.models import RunAdventurer, RunEvent, RunState, Spirit
+from yt_live_dungeon.persistence.models import Egregore, RunAdventurer, RunEvent, RunState
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
 
@@ -39,26 +39,30 @@ def _context(session, run_id, viewer_id: str, *, received_at=NOW) -> CommandCont
     )
 
 
-async def _isolate_spirit_draw(db_session, spirit_id) -> None:
-    await db_session.execute(update(Spirit).where(Spirit.id != spirit_id).values(is_active=False))
+async def _isolate_egregore_draw(db_session, egregore_id) -> None:
+    await db_session.execute(
+        update(Egregore).where(Egregore.id != egregore_id).values(is_active=False)
+    )
 
 
-async def _setup_spirit(
-    db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory
+async def _setup_egregore(
+    db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory
 ):
     spell = await spell_factory()
     blessing_item = await item_factory(granted_spell_id=spell.id)
-    spirit = await spirit_factory(blessing_item_id=blessing_item.id)
+    egregore = await egregore_factory(blessing_item_id=blessing_item.id)
     pool_item = await item_factory(granted_spell_id=spell.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=pool_item.id)
-    await _isolate_spirit_draw(db_session, spirit.id)
-    return spirit, blessing_item, pool_item
+    await pool_entry_factory(egregore_id=egregore.id, item_id=pool_item.id)
+    await _isolate_egregore_draw(db_session, egregore.id)
+    return egregore, blessing_item, pool_item
 
 
 async def test_login_succeeds_when_waiting(
-    db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory
+    db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory
 ):
-    await _setup_spirit(db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory)
+    await _setup_egregore(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory
+    )
     run = await run_factory(state=RunState.WAITING)
 
     outcome = await handle_login(Login(), _context(db_session, run.id, "viewer-1"))
@@ -86,9 +90,11 @@ async def test_login_rejected_when_not_waiting(db_session, run_factory):
 
 
 async def test_login_rejected_when_already_joined(
-    db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory
+    db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory
 ):
-    await _setup_spirit(db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory)
+    await _setup_egregore(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory
+    )
     run = await run_factory(state=RunState.WAITING)
     await handle_login(Login(), _context(db_session, run.id, "dup-viewer"))
 
@@ -108,9 +114,11 @@ async def test_login_rejected_when_already_joined(
 
 
 async def test_login_succeeds_from_seven_participants(
-    db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory
+    db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory
 ):
-    await _setup_spirit(db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory)
+    await _setup_egregore(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory
+    )
     run = await run_factory(state=RunState.WAITING)
     for i in range(7):
         outcome = await handle_login(Login(), _context(db_session, run.id, f"viewer-{i}"))
@@ -122,9 +130,11 @@ async def test_login_succeeds_from_seven_participants(
 
 
 async def test_login_rejected_when_eight_participants(
-    db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory
+    db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory
 ):
-    await _setup_spirit(db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory)
+    await _setup_egregore(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory
+    )
     run = await run_factory(state=RunState.WAITING)
     for i in range(MAX_PARTICIPANTS):
         outcome = await handle_login(Login(), _context(db_session, run.id, f"viewer-{i}"))
@@ -144,9 +154,11 @@ async def test_login_rejected_when_eight_participants(
 
 
 async def test_first_successful_login_sets_the_deadline(
-    db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory
+    db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory
 ):
-    await _setup_spirit(db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory)
+    await _setup_egregore(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory
+    )
     run = await run_factory(state=RunState.WAITING)
     assert run.waiting_deadline_at is None
 
@@ -157,9 +169,11 @@ async def test_first_successful_login_sets_the_deadline(
 
 
 async def test_second_login_does_not_move_the_deadline(
-    db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory
+    db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory
 ):
-    await _setup_spirit(db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory)
+    await _setup_egregore(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory
+    )
     run = await run_factory(state=RunState.WAITING)
     await handle_login(Login(), _context(db_session, run.id, "first-viewer", received_at=NOW))
     await db_session.refresh(run)
@@ -173,9 +187,11 @@ async def test_second_login_does_not_move_the_deadline(
 
 
 async def test_rejected_login_does_not_set_the_deadline(
-    db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory
+    db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory
 ):
-    await _setup_spirit(db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory)
+    await _setup_egregore(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory
+    )
     run = await run_factory(state=RunState.WAITING)
 
     outcome = await handle_login(
@@ -195,10 +211,10 @@ async def test_rejected_login_does_not_set_the_deadline(
 
 
 async def test_adventurer_login_event_body_for_new_adventurer(
-    db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory, run_factory
+    db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory, run_factory
 ):
-    spirit, blessing_item, pool_item = await _setup_spirit(
-        db_session, spell_factory, item_factory, spirit_factory, pool_entry_factory
+    egregore, blessing_item, pool_item = await _setup_egregore(
+        db_session, spell_factory, item_factory, egregore_factory, pool_entry_factory
     )
     run = await run_factory(state=RunState.WAITING)
 
@@ -221,7 +237,7 @@ async def test_adventurer_login_event_body_for_new_adventurer(
 
     assert event.body == {
         "adventurer": str(adventurer.id),
-        "spirit": spirit.id,
+        "egregore": egregore.id,
         "blessing_item": blessing_item.id,
         "pool_item": pool_item.id,
     }

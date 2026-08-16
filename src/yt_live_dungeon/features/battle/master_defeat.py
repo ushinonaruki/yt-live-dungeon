@@ -8,8 +8,8 @@ from yt_live_dungeon.domain.random_source import RandomSource
 from yt_live_dungeon.features.camp.start import start_camp
 from yt_live_dungeon.features.floor.start import LAST_FLOOR
 from yt_live_dungeon.persistence.models import Run, RunEnemy, RunState
+from yt_live_dungeon.persistence.queries.egregore import list_active_egregore_ids
 from yt_live_dungeon.persistence.queries.event import append_event
-from yt_live_dungeon.persistence.queries.spirit import list_active_spirit_ids
 
 
 async def check_and_handle_master_defeat(
@@ -58,9 +58,9 @@ async def check_and_handle_master_defeat(
         await append_event(session, run.id, "run_completed", {"floor": run.current_floor})
         return
 
-    spirit_ids = await list_active_spirit_ids(session)
-    if not spirit_ids:
-        raise CampConfigurationError("no active spirits available to start CAMP")
-    spirit_id = random_source.sample(spirit_ids, 1)[0]
+    egregore_ids = await list_active_egregore_ids(session)
+    if not egregore_ids:
+        raise CampConfigurationError("no active egregores available to start CAMP")
+    egregore_id = random_source.sample(egregore_ids, 1)[0]
 
-    await start_camp(session, run.id, spirit_id, now=now, random_source=random_source)
+    await start_camp(session, run.id, egregore_id, now=now, random_source=random_source)

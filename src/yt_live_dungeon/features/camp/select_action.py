@@ -11,6 +11,7 @@ from yt_live_dungeon.features.inventory.acquire import acquire_item
 from yt_live_dungeon.features.inventory.forge import forge
 from yt_live_dungeon.persistence.models import Run, RunAdventurer, RunCamp, RunCampMember
 from yt_live_dungeon.persistence.queries.camp import get_camp_member
+from yt_live_dungeon.persistence.queries.egregore import get_egregore
 from yt_live_dungeon.persistence.queries.event import append_event
 from yt_live_dungeon.persistence.queries.inventory import (
     apply_entries,
@@ -19,7 +20,6 @@ from yt_live_dungeon.persistence.queries.inventory import (
     to_item_definition,
 )
 from yt_live_dungeon.persistence.queries.item import get_item
-from yt_live_dungeon.persistence.queries.spirit import get_spirit
 
 ACTION_NOT_AVAILABLE = "action_not_available"
 ACTION_ALREADY_SELECTED = "action_already_selected"
@@ -164,14 +164,14 @@ async def _forge_matching_items(
     member: RunCampMember,
     received_at: datetime,
 ) -> CommandOutcome:
-    spirit = await get_spirit(session, camp.spirit_id)
+    egregore = await get_egregore(session, camp.egregore_id)
 
     rows = await list_owned_rows(session, adventurer.id, for_update=True)
     entries = to_inventory_entries(rows)
 
     result = forge(
         entries,
-        spirit.representative_attribute,
+        egregore.representative_attribute,
         hp=adventurer.hp,
         mp=adventurer.mp,
         base_max_hp=adventurer.base_max_hp,

@@ -36,7 +36,7 @@ def _context(session, run_id, viewer_id: str, command: str) -> CommandContext:
 async def _setup(
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -45,17 +45,17 @@ async def _setup(
 ):
     spell = await spell_factory(command="firebolt")
     blessing_item = await item_factory(granted_spell_id=spell.id)
-    spirit = await spirit_factory(blessing_item_id=blessing_item.id)
+    egregore = await egregore_factory(blessing_item_id=blessing_item.id)
     candidate_a = await item_factory(granted_spell_id=spell.id)
     candidate_b = await item_factory(granted_spell_id=spell.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_a.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_b.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_a.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_b.id)
 
     run = await run_factory(state=RunState.CAMP, current_floor=1)
     adventurer = await adventurer_factory(run_id=run.id, hp=500, mp=100)
     camp = await camp_factory(
         run_id=run.id,
-        spirit_id=spirit.id,
+        egregore_id=egregore.id,
         candidate_a_item_id=candidate_a.id,
         candidate_b_item_id=candidate_b.id,
         floor=1,
@@ -69,7 +69,7 @@ async def test_returns_details_for_unlocked_spell(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -80,7 +80,7 @@ async def test_returns_details_for_unlocked_spell(
     spell, blessing_item, run, adventurer = await _setup(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -110,7 +110,7 @@ async def test_deduplicates_spell_shared_by_multiple_items(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -121,7 +121,7 @@ async def test_deduplicates_spell_shared_by_multiple_items(
     spell, blessing_item, run, adventurer = await _setup(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -158,7 +158,7 @@ async def test_spell_rejected_when_viewer_not_joined(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -168,7 +168,7 @@ async def test_spell_rejected_when_viewer_not_joined(
     spell, _blessing_item, run, _adventurer = await _setup(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -189,7 +189,7 @@ async def test_unknown_spell_command(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -199,7 +199,7 @@ async def test_unknown_spell_command(
     _spell, _blessing_item, run, adventurer = await _setup(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -220,7 +220,7 @@ async def test_spell_not_unlocked(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -230,7 +230,7 @@ async def test_spell_not_unlocked(
     _spell, _blessing_item, run, adventurer = await _setup(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -252,7 +252,7 @@ async def test_spell_detail_does_not_mutate_mp_or_state(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -263,7 +263,7 @@ async def test_spell_detail_does_not_mutate_mp_or_state(
     spell, blessing_item, run, adventurer = await _setup(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,

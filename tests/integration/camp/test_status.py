@@ -35,7 +35,7 @@ async def test_status_returns_final_stats_including_items(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -49,17 +49,17 @@ async def test_status_returns_final_stats_including_items(
         base_stat_modifiers={"max_hp": 50, "rr": 10},
         per_level_stat_modifiers={"max_hp": 5, "rr": 1},
     )
-    spirit = await spirit_factory(blessing_item_id=blessing_item.id)
+    egregore = await egregore_factory(blessing_item_id=blessing_item.id)
     candidate_a = await item_factory(granted_spell_id=spell.id)
     candidate_b = await item_factory(granted_spell_id=spell.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_a.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_b.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_a.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_b.id)
 
     run = await run_factory(state=RunState.CAMP, current_floor=1)
-    adventurer = await adventurer_factory(run_id=run.id, spirit_id=spirit.id, hp=400, mp=80)
+    adventurer = await adventurer_factory(run_id=run.id, egregore_id=egregore.id, hp=400, mp=80)
     camp = await camp_factory(
         run_id=run.id,
-        spirit_id=spirit.id,
+        egregore_id=egregore.id,
         candidate_a_item_id=candidate_a.id,
         candidate_b_item_id=candidate_b.id,
         floor=1,
@@ -78,7 +78,7 @@ async def test_status_returns_final_stats_including_items(
     assert result["max_hp"] == 500 + (50 + 5 * 2)
     assert result["mp"] == 80
     assert result["attributes"]["rr"] == 10 + 1 * 2
-    assert result["spirit"] == {"id": spirit.id, "display_name": spirit.display_name}
+    assert result["egregore"] == {"id": egregore.id, "display_name": egregore.display_name}
     assert result["is_ready"] is False
 
 
@@ -86,7 +86,7 @@ async def test_status_reflects_is_ready(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -95,17 +95,17 @@ async def test_status_reflects_is_ready(
 ):
     spell = await spell_factory()
     blessing_item = await item_factory(granted_spell_id=spell.id)
-    spirit = await spirit_factory(blessing_item_id=blessing_item.id)
+    egregore = await egregore_factory(blessing_item_id=blessing_item.id)
     candidate_a = await item_factory(granted_spell_id=spell.id)
     candidate_b = await item_factory(granted_spell_id=spell.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_a.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_b.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_a.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_b.id)
 
     run = await run_factory(state=RunState.CAMP, current_floor=1)
-    adventurer = await adventurer_factory(run_id=run.id, spirit_id=spirit.id)
+    adventurer = await adventurer_factory(run_id=run.id, egregore_id=egregore.id)
     camp = await camp_factory(
         run_id=run.id,
-        spirit_id=spirit.id,
+        egregore_id=egregore.id,
         candidate_a_item_id=candidate_a.id,
         candidate_b_item_id=candidate_b.id,
         floor=1,
@@ -137,23 +137,23 @@ async def test_status_rejects_unjoined_viewer(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
 ):
     spell = await spell_factory()
     blessing_item = await item_factory(granted_spell_id=spell.id)
-    spirit = await spirit_factory(blessing_item_id=blessing_item.id)
+    egregore = await egregore_factory(blessing_item_id=blessing_item.id)
     candidate_a = await item_factory(granted_spell_id=spell.id)
     candidate_b = await item_factory(granted_spell_id=spell.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_a.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_b.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_a.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_b.id)
 
     run = await run_factory(state=RunState.CAMP, current_floor=1)
     await camp_factory(
         run_id=run.id,
-        spirit_id=spirit.id,
+        egregore_id=egregore.id,
         candidate_a_item_id=candidate_a.id,
         candidate_b_item_id=candidate_b.id,
         floor=1,

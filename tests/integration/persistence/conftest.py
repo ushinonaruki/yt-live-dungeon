@@ -3,6 +3,7 @@ import pytest_asyncio
 
 from yt_live_dungeon.persistence.database import async_session_factory
 from yt_live_dungeon.persistence.models import (
+    Egregore,
     Enemy,
     EnemyGroup,
     EnemyGroupMember,
@@ -10,7 +11,6 @@ from yt_live_dungeon.persistence.models import (
     Run,
     RunAdventurer,
     Spell,
-    Spirit,
 )
 
 
@@ -65,20 +65,20 @@ def item_factory(db_session):
 
 
 @pytest.fixture
-def spirit_factory(db_session):
-    async def _create(blessing_item_id: int, **overrides) -> Spirit:
+def egregore_factory(db_session):
+    async def _create(blessing_item_id: int, **overrides) -> Egregore:
         defaults = dict(
-            spirit_key="test_spirit",
-            display_name="test spirit",
+            egregore_key="test_egregore",
+            display_name="test egregore",
             representative_attribute="RR",
             blessing_item_id=blessing_item_id,
             is_active=True,
         )
         defaults.update(overrides)
-        spirit = Spirit(**defaults)
-        db_session.add(spirit)
+        egregore = Egregore(**defaults)
+        db_session.add(egregore)
         await db_session.flush()
-        return spirit
+        return egregore
 
     return _create
 

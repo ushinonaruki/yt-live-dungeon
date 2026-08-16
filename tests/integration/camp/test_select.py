@@ -20,6 +20,8 @@ from yt_live_dungeon.features.commands.submit import submit_command
 from yt_live_dungeon.features.commands.types import CommandInput
 from yt_live_dungeon.persistence.database import async_session_factory
 from yt_live_dungeon.persistence.models import (
+    Egregore,
+    EgregoreItemPoolEntry,
     Item,
     ProcessedCommand,
     Run,
@@ -30,8 +32,6 @@ from yt_live_dungeon.persistence.models import (
     RunEvent,
     RunState,
     Spell,
-    Spirit,
-    SpiritItemPoolEntry,
 )
 from yt_live_dungeon.persistence.queries.camp import get_camp_member
 
@@ -45,7 +45,7 @@ def _unique(label: str) -> str:
 async def _setup_camp(
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -60,20 +60,20 @@ async def _setup_camp(
     blessing_item = await item_factory(
         granted_spell_id=spell.id, attribute=representative_attribute
     )
-    spirit = await spirit_factory(
+    egregore = await egregore_factory(
         blessing_item_id=blessing_item.id, representative_attribute=representative_attribute
     )
 
     candidate_a = await item_factory(granted_spell_id=spell.id)
     candidate_b = await item_factory(granted_spell_id=spell.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_a.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_b.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_a.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_b.id)
 
     run = await run_factory(state=RunState.CAMP, current_floor=1)
     adventurer = await adventurer_factory(run_id=run.id)
     camp = await camp_factory(
         run_id=run.id,
-        spirit_id=spirit.id,
+        egregore_id=egregore.id,
         candidate_a_item_id=candidate_a.id,
         candidate_b_item_id=candidate_b.id,
         floor=1,
@@ -88,7 +88,7 @@ async def _setup_camp(
     return SimpleNamespace(
         spell=spell,
         blessing_item=blessing_item,
-        spirit=spirit,
+        egregore=egregore,
         candidate_a=candidate_a,
         candidate_b=candidate_b,
         run=run,
@@ -125,7 +125,7 @@ async def test_rest_heals_100_hp(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -135,7 +135,7 @@ async def test_rest_heals_100_hp(
     scenario = await _setup_camp(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -165,7 +165,7 @@ async def test_rest_does_not_exceed_max_hp(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -175,7 +175,7 @@ async def test_rest_does_not_exceed_max_hp(
     scenario = await _setup_camp(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -193,7 +193,7 @@ async def test_new_candidate_acquisition_is_level_1(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -203,7 +203,7 @@ async def test_new_candidate_acquisition_is_level_1(
     scenario = await _setup_camp(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -231,7 +231,7 @@ async def test_duplicate_candidate_acquisition_increases_level_by_5_without_new_
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -242,7 +242,7 @@ async def test_duplicate_candidate_acquisition_increases_level_by_5_without_new_
     scenario = await _setup_camp(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -277,7 +277,7 @@ async def test_unowned_candidate_fails_when_inventory_full(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -288,7 +288,7 @@ async def test_unowned_candidate_fails_when_inventory_full(
     scenario = await _setup_camp(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -333,7 +333,7 @@ async def test_candidate_acquisition_clamps_hp_when_max_hp_decreases_but_max_mp_
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -345,20 +345,20 @@ async def test_candidate_acquisition_clamps_hp_when_max_hp_decreases_but_max_mp_
     items, unlike max HP."""
     spell = await spell_factory()
     blessing_item = await item_factory(granted_spell_id=spell.id)
-    spirit = await spirit_factory(blessing_item_id=blessing_item.id)
+    egregore = await egregore_factory(blessing_item_id=blessing_item.id)
     draining_item = await item_factory(
         granted_spell_id=spell.id,
         base_stat_modifiers={"max_hp": -400},
     )
     other_candidate = await item_factory(granted_spell_id=spell.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=draining_item.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=other_candidate.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=draining_item.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=other_candidate.id)
 
     run = await run_factory(state=RunState.CAMP, current_floor=1)
     adventurer = await adventurer_factory(run_id=run.id, hp=500, mp=100)
     camp = await camp_factory(
         run_id=run.id,
-        spirit_id=spirit.id,
+        egregore_id=egregore.id,
         candidate_a_item_id=draining_item.id,
         candidate_b_item_id=other_candidate.id,
         floor=1,
@@ -379,7 +379,7 @@ async def test_duplicate_candidate_succeeds_even_when_inventory_full(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -390,7 +390,7 @@ async def test_duplicate_candidate_succeeds_even_when_inventory_full(
     scenario = await _setup_camp(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -423,7 +423,7 @@ async def test_forge_increases_level_for_matching_attribute_items(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -434,7 +434,7 @@ async def test_forge_increases_level_for_matching_attribute_items(
     scenario = await _setup_camp(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -472,7 +472,7 @@ async def test_forge_includes_blessing_item(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -483,7 +483,7 @@ async def test_forge_includes_blessing_item(
     scenario = await _setup_camp(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -512,7 +512,7 @@ async def test_forge_with_zero_matches_still_succeeds(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -523,7 +523,7 @@ async def test_forge_with_zero_matches_still_succeeds(
     scenario = await _setup_camp(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -557,7 +557,7 @@ async def test_second_selection_after_success_is_rejected(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -567,7 +567,7 @@ async def test_second_selection_after_success_is_rejected(
     scenario = await _setup_camp(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -600,23 +600,23 @@ async def test_select_rejected_when_viewer_not_joined(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
 ):
     spell = await spell_factory()
     blessing_item = await item_factory(granted_spell_id=spell.id)
-    spirit = await spirit_factory(blessing_item_id=blessing_item.id)
+    egregore = await egregore_factory(blessing_item_id=blessing_item.id)
     candidate_a = await item_factory(granted_spell_id=spell.id)
     candidate_b = await item_factory(granted_spell_id=spell.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_a.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_b.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_a.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_b.id)
 
     run = await run_factory(state=RunState.CAMP, current_floor=1)
     await camp_factory(
         run_id=run.id,
-        spirit_id=spirit.id,
+        egregore_id=egregore.id,
         candidate_a_item_id=candidate_a.id,
         candidate_b_item_id=candidate_b.id,
         floor=1,
@@ -635,7 +635,7 @@ async def test_select_rejected_when_cannot_select_action(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -645,7 +645,7 @@ async def test_select_rejected_when_cannot_select_action(
     scenario = await _setup_camp(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -679,13 +679,13 @@ async def _commit_camp_scenario() -> SimpleNamespace:
         session.add(blessing_item)
         await session.flush()
 
-        spirit = Spirit(
-            spirit_key=_unique("spirit"),
+        egregore = Egregore(
+            egregore_key=_unique("egregore"),
             display_name="s",
             representative_attribute="RR",
             blessing_item_id=blessing_item.id,
         )
-        session.add(spirit)
+        session.add(egregore)
         await session.flush()
 
         candidate_a = Item(
@@ -697,8 +697,8 @@ async def _commit_camp_scenario() -> SimpleNamespace:
         session.add_all([candidate_a, candidate_b])
         await session.flush()
 
-        session.add(SpiritItemPoolEntry(spirit_id=spirit.id, item_id=candidate_a.id))
-        session.add(SpiritItemPoolEntry(spirit_id=spirit.id, item_id=candidate_b.id))
+        session.add(EgregoreItemPoolEntry(egregore_id=egregore.id, item_id=candidate_a.id))
+        session.add(EgregoreItemPoolEntry(egregore_id=egregore.id, item_id=candidate_b.id))
 
         run = Run(state=RunState.CAMP, current_floor=1)
         session.add(run)
@@ -711,7 +711,7 @@ async def _commit_camp_scenario() -> SimpleNamespace:
         camp = RunCamp(
             run_id=run.id,
             floor=1,
-            spirit_id=spirit.id,
+            egregore_id=egregore.id,
             candidate_a_item_id=candidate_a.id,
             candidate_b_item_id=candidate_b.id,
             started_at=NOW,
@@ -761,13 +761,13 @@ async def _commit_camp_scenario_with_two_adventurers() -> SimpleNamespace:
         session.add(blessing_item)
         await session.flush()
 
-        spirit = Spirit(
-            spirit_key=_unique("spirit"),
+        egregore = Egregore(
+            egregore_key=_unique("egregore"),
             display_name="s",
             representative_attribute="RR",
             blessing_item_id=blessing_item.id,
         )
-        session.add(spirit)
+        session.add(egregore)
         await session.flush()
 
         candidate_a = Item(
@@ -779,8 +779,8 @@ async def _commit_camp_scenario_with_two_adventurers() -> SimpleNamespace:
         session.add_all([candidate_a, candidate_b])
         await session.flush()
 
-        session.add(SpiritItemPoolEntry(spirit_id=spirit.id, item_id=candidate_a.id))
-        session.add(SpiritItemPoolEntry(spirit_id=spirit.id, item_id=candidate_b.id))
+        session.add(EgregoreItemPoolEntry(egregore_id=egregore.id, item_id=candidate_a.id))
+        session.add(EgregoreItemPoolEntry(egregore_id=egregore.id, item_id=candidate_b.id))
 
         run = Run(state=RunState.BATTLE, current_floor=1)
         session.add(run)
@@ -793,7 +793,7 @@ async def _commit_camp_scenario_with_two_adventurers() -> SimpleNamespace:
 
         # start_camp() registers both already-participating adventurers as
         # members with can_select_action=True and records camp_started.
-        await start_camp(session, run.id, spirit.id, now=NOW, random_source=random.Random(1))
+        await start_camp(session, run.id, egregore.id, now=NOW, random_source=random.Random(1))
         await session.commit()
 
         return SimpleNamespace(

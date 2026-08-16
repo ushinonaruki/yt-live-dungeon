@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 # obsidian/.../キャラクター/ステータス.md section 5: max MP is fixed at
 # 100 for every combatant -- adventurer, master, and minion alike. It
-# never varies by item, item Lv, spirit, enemy template, or floor. This
+# never varies by item, item Lv, egregore, enemy template, or floor. This
 # is the single definition of that constant; nothing else in the
 # codebase redefines the number 100 for this purpose.
 MAX_MP = 100

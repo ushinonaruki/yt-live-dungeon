@@ -48,7 +48,7 @@ async def handle_login(command: Login, context: CommandContext) -> CommandOutcom
     if existing is not None:
         return CommandOutcome(processed=False, reason=ALREADY_JOINED, result=None)
 
-    # Capacity is checked -- and the spirit/item draw happens -- only
+    # Capacity is checked -- and the egregore/item draw happens -- only
     # after the already-exists rejection above, so neither a full run
     # nor a repeat login ever consumes randomness or writes anything.
     current_participants = await list_active_participants(session, run.id)
@@ -62,7 +62,7 @@ async def handle_login(command: Login, context: CommandContext) -> CommandOutcom
     if run.waiting_deadline_at is None:
         run.waiting_deadline_at = now + INITIAL_PARTICIPATION_WINDOW
 
-    body = {"adventurer": str(adventurer.id), "spirit": adventurer.spirit_id, **granted}
+    body = {"adventurer": str(adventurer.id), "egregore": adventurer.egregore_id, **granted}
     await append_event(session, run.id, "adventurer_login", body)
 
     return CommandOutcome(processed=True, reason=None, result=None)

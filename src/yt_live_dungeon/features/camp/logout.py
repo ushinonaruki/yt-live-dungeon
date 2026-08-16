@@ -24,7 +24,7 @@ async def handle_logout(command: Logout, context: CommandContext) -> CommandOutc
         return resolved
     run, camp, adventurer = resolved.run, resolved.camp, resolved.adventurer
 
-    # Participation flips off; the adventurer row itself (spirit, items,
+    # Participation flips off; the adventurer row itself (egregore, items,
     # item levels, hp, mp) is left untouched, as is the RunCampMember row
     # apart from left_at -- a logged-out survivor keeps their history.
     adventurer.is_participating = False

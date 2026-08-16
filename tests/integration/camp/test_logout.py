@@ -38,7 +38,7 @@ def _context(session, run_id, viewer_id: str) -> CommandContext:
 async def _setup_camp_with_members(
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -52,11 +52,11 @@ async def _setup_camp_with_members(
 ):
     spell = await spell_factory()
     blessing_item = await item_factory(granted_spell_id=spell.id)
-    spirit = await spirit_factory(blessing_item_id=blessing_item.id)
+    egregore = await egregore_factory(blessing_item_id=blessing_item.id)
     candidate_a = await item_factory(granted_spell_id=spell.id)
     candidate_b = await item_factory(granted_spell_id=spell.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_a.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_b.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_a.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_b.id)
 
     enemy = await enemy_factory()
     group = await enemy_group_factory(
@@ -66,7 +66,7 @@ async def _setup_camp_with_members(
     run = await run_factory(state=RunState.CAMP, current_floor=1, next_group_id=group.id)
     camp = await camp_factory(
         run_id=run.id,
-        spirit_id=spirit.id,
+        egregore_id=egregore.id,
         candidate_a_item_id=candidate_a.id,
         candidate_b_item_id=candidate_b.id,
         floor=1,
@@ -90,7 +90,7 @@ async def test_logout_sets_is_participating_false_and_left_at(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -102,7 +102,7 @@ async def test_logout_sets_is_participating_false_and_left_at(
     run, camp, [adventurer, _other] = await _setup_camp_with_members(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -123,11 +123,11 @@ async def test_logout_sets_is_participating_false_and_left_at(
     assert member.left_at == NOW
 
 
-async def test_logout_preserves_adventurer_spirit_items_hp_mp(
+async def test_logout_preserves_adventurer_egregore_items_hp_mp(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -140,7 +140,7 @@ async def test_logout_preserves_adventurer_spirit_items_hp_mp(
     run, camp, [adventurer, _other] = await _setup_camp_with_members(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -174,7 +174,7 @@ async def test_logout_frees_a_participant_slot(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -186,7 +186,7 @@ async def test_logout_frees_a_participant_slot(
     run, _camp, [adventurer, other] = await _setup_camp_with_members(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -206,7 +206,7 @@ async def test_logout_that_leaves_all_remaining_ready_ends_camp(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -218,7 +218,7 @@ async def test_logout_that_leaves_all_remaining_ready_ends_camp(
     run, _camp, [not_ready, ready] = await _setup_camp_with_members(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -252,7 +252,7 @@ async def test_logout_of_last_participant_retires_the_run(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -264,7 +264,7 @@ async def test_logout_of_last_participant_retires_the_run(
     run, _camp, [only_adventurer] = await _setup_camp_with_members(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -303,7 +303,7 @@ async def test_logout_does_not_end_camp_when_other_participants_remain_unready(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -315,7 +315,7 @@ async def test_logout_does_not_end_camp_when_other_participants_remain_unready(
     run, _camp, [leaving, still_here] = await _setup_camp_with_members(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
@@ -349,22 +349,22 @@ async def test_logout_rejected_when_not_joined(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     camp_factory,
 ):
     spell = await spell_factory()
     blessing_item = await item_factory(granted_spell_id=spell.id)
-    spirit = await spirit_factory(blessing_item_id=blessing_item.id)
+    egregore = await egregore_factory(blessing_item_id=blessing_item.id)
     candidate_a = await item_factory(granted_spell_id=spell.id)
     candidate_b = await item_factory(granted_spell_id=spell.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_a.id)
-    await pool_entry_factory(spirit_id=spirit.id, item_id=candidate_b.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_a.id)
+    await pool_entry_factory(egregore_id=egregore.id, item_id=candidate_b.id)
     run = await run_factory(state=RunState.CAMP, current_floor=1)
     await camp_factory(
         run_id=run.id,
-        spirit_id=spirit.id,
+        egregore_id=egregore.id,
         candidate_a_item_id=candidate_a.id,
         candidate_b_item_id=candidate_b.id,
         floor=1,
@@ -382,7 +382,7 @@ async def test_adventurer_logout_event_body(
     db_session,
     spell_factory,
     item_factory,
-    spirit_factory,
+    egregore_factory,
     pool_entry_factory,
     run_factory,
     adventurer_factory,
@@ -394,7 +394,7 @@ async def test_adventurer_logout_event_body(
     run, _camp, [adventurer, _other] = await _setup_camp_with_members(
         spell_factory,
         item_factory,
-        spirit_factory,
+        egregore_factory,
         pool_entry_factory,
         run_factory,
         adventurer_factory,
