@@ -9,7 +9,7 @@ YouTube Live のコメントを参加コマンドとして扱う、リアルタ�
 
 ```text
 .
-├── compose.yaml                # Docker Compose（api + postgres + redis）
+├── compose.yaml                # Docker Compose（api + postgres + redis + pgadmin）
 ├── alembic.ini                 # Alembic設定（src/yt_live_dungeon/migrations を参照）
 ├── pyproject.toml / uv.lock    # 依存パッケージ定義（唯一のPython package root）
 ├── .env.example                # 環境変数テンプレート
@@ -29,7 +29,8 @@ YouTube Live のコメントを参加コマンドとして扱う、リアルタ�
 └── docker/
     ├── api/Dockerfile            # apiサービス用マルチステージビルド
     ├── postgres/Dockerfile       # PostgreSQL
-    └── redis/Dockerfile          # Redis
+    ├── redis/Dockerfile          # Redis
+    └── pgadmin/Dockerfile        # pgAdmin 4（PostgreSQL管理GUI）
 ```
 
 ## セットアップ（Dockerだけで完結）
@@ -74,6 +75,18 @@ http://localhost:8000/docs
 ```bash
 docker compose exec -T api python -c "import json, urllib.request; print(json.load(urllib.request.urlopen('http://127.0.0.1:8000/health')))"
 ```
+
+## pgAdmin（PostgreSQL管理GUI）
+
+`docker compose up -d` で pgAdmin もあわせて常設起動する。DB本体ではなく、既存PostgreSQLコンテナへ接続するための管理クライアントであり、`.env`に`PGADMIN_DEFAULT_EMAIL`・`PGADMIN_DEFAULT_PASSWORD`・`PGADMIN_PORT_HOST`が必要となる。
+
+```text
+http://localhost:${PGADMIN_PORT_HOST}
+```
+
+ログインには`.env`の`PGADMIN_DEFAULT_EMAIL`・`PGADMIN_DEFAULT_PASSWORD`を使う。ログイン後、PostgreSQLサーバーを新規登録する（Host名はComposeのサービス名`postgres`、Portは`POSTGRES_PORT_CONTAINER`、DB名・ユーザー名・パスワードは`.env`のPostgreSQL設定を使用）。登録した接続情報は`pgadmin_data` volumeへ永続化され、pgAdminコンテナを再作成しても保持される。
+
+ER図はpgAdminのERD Tool（対象スキーマを右クリック → ERD For Schema）から確認できる。将来PostgreSQLをRDSへ移行した場合も、同じpgAdminから接続先を切り替えるだけで利用を継続できる。
 
 ## 現時点で実装済みの公開HTTP API
 
